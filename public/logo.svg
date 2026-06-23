@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200" height="60">
+  <rect width="200" height="60" fill="#1a3a6c" rx="4"/>
+  <text x="10" y="22" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#f5a800">MULHOLLAND</text>
+  <text x="10" y="40" font-family="Arial, sans-serif" font-size="10" fill="#ffffff">TRADERS PVT LTD</text>
+  <rect x="155" y="8" width="38" height="44" fill="#ffe600" rx="3"/>
+  <text x="174" y="27" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1a3a6c" text-anchor="middle">MT</text>
+  <text x="174" y="42" font-family="Arial, sans-serif" font-size="6" fill="#1a3a6c" text-anchor="middle">EST.1995</text>
+</svg>
