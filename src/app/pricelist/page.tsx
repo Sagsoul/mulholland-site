@@ -34,7 +34,7 @@ export default async function PriceListPage() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Header */}
       <div className="bg-navy text-white rounded-2xl p-8 mb-10 flex flex-col md:flex-row items-center gap-6">
-        <Image src="/logo.svg" alt={COMPANY.name} width={160} height={48} />
+        <Image src="/logo.png" alt="Mulholland Traders Pvt Ltd" width={240} height={72} />
         <div>
           <h1 className="text-2xl font-bold text-gold">Retail Price List</h1>
           <p className="text-gray-300 text-sm mt-1">{COMPANY.tagline}</p>

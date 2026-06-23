@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -25,9 +26,9 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 bg-navy text-white flex flex-col min-h-screen">
-      <div className="p-6 border-b border-navy-light">
-        <p className="text-gold font-bold text-lg">MT Admin</p>
-        <p className="text-xs text-gray-400">Mulholland Traders</p>
+      <div className="p-6 border-b border-navy-light flex flex-col items-start gap-2">
+        <Image src="/logo.png" alt="Mulholland Traders Pvt Ltd" width={160} height={48} />
+        <p className="text-xs text-gray-400">Admin Portal</p>
       </div>
       <nav className="flex-1 p-4 space-y-1">
         {navItems.map((item) => (

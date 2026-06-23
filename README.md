@@ -30,12 +30,13 @@ cp .env.example .env.local
 
 ### 3. Database Setup
 
-Run the SQL files against your Supabase project:
+Run the SQL files against your Supabase project in order:
 
 ```bash
-# In Supabase SQL editor, run:
-# 1. supabase/schema.sql
-# 2. supabase/seed.sql
+# In Supabase SQL editor, run in this exact order:
+# 1. supabase/schema.sql        — creates all tables, triggers, and RLS policies
+# 2. supabase/seed.sql          — seeds categories, sample products, and the Jan-26 price list
+# 3. supabase/migrations/0002_seed_pricelist_products.sql  — (see Migrations section below)
 ```
 
 ### 4. Run Development Server
@@ -70,6 +71,22 @@ supabase/
 - 🏪 **POS Terminal** — In-store point-of-sale for admin
 - 📦 **Inventory Management** — CRUD products, stock management
 - 📊 **Sales Dashboard** — Online + POS sales history
+
+## Migrations
+
+Run these SQL files in order after a fresh Supabase project is created:
+
+| # | File | Purpose |
+|---|------|---------|
+| 1 | `supabase/schema.sql` | Creates all tables, triggers, storage buckets, and RLS policies |
+| 2 | `supabase/seed.sql` | Seeds 6 categories, sample second-hand products, and the full Jan-26 retail price list |
+| 3 | `supabase/migrations/0002_seed_pricelist_products.sql` | Makes every Jan-26 retail product a buyable item on `/shop` |
+
+**About migration 3:**
+- Inserts all 28 Jan-26 catalogue rows into the `products` table so they appear on `/shop` and go through the cart → WhatsApp checkout flow.
+- All rows are seeded with `stock_qty = 0` so they are hidden on the public storefront until an admin sets stock from `/admin/inventory`.
+- The public storefront filters `is_active = true AND stock_qty > 0`, so a product is only visible once the admin increments its stock.
+- The migration is **idempotent**: re-running it updates `name`, `description`, `price_usd`, and `category_id` only — it does **not** reset `stock_qty`, `is_active`, or `image_url`.
 
 ## Contacts
 

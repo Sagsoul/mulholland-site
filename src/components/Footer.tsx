@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { COMPANY } from "@/lib/constants";
 
 export default function Footer() {
@@ -8,7 +9,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Brand */}
           <div>
-            <h3 className="text-gold font-bold text-lg mb-2">{COMPANY.name}</h3>
+            <Image src="/logo.png" alt="Mulholland Traders Pvt Ltd" width={140} height={42} className="mb-3" />
             <p className="text-sm text-gray-300 mb-3">{COMPANY.tagline}</p>
             <p className="text-xs text-gray-400">{COMPANY.address}</p>
             <p className="text-xs text-gray-400 mt-1">{COMPANY.altAddress}</p>
