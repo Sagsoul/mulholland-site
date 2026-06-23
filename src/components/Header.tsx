@@ -15,7 +15,7 @@ export default function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 flex-shrink-0">
-            <Image src="/logo.svg" alt="Mulholland Traders" width={140} height={42} priority />
+            <Image src="/logo.png" alt="Mulholland Traders Pvt Ltd" width={180} height={54} priority />
           </Link>
 
           {/* Desktop Nav */}

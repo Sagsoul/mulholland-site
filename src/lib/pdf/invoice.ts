@@ -9,6 +9,22 @@ async function getJsPDF() {
   return { jsPDF, autoTable };
 }
 
+async function fetchLogoDataUrl(): Promise<string | null> {
+  try {
+    const res = await fetch("/logo.png");
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 const NAVY = [26, 58, 108] as const;
 const GOLD = [245, 168, 0] as const;
 const YELLOW = [255, 230, 0] as const;
@@ -24,6 +40,7 @@ export async function generateProFormaInvoicePDF(
   notes?: string
 ): Promise<{ blob: Blob; filename: string }> {
   const { jsPDF, autoTable } = await getJsPDF();
+  const logoDataUrl = await fetchLogoDataUrl();
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -32,26 +49,40 @@ export async function generateProFormaInvoicePDF(
   doc.setFillColor(...NAVY);
   doc.rect(0, 0, pageWidth, 28, "F");
 
-  // Logo box
-  doc.setFillColor(...YELLOW);
-  doc.rect(pageWidth - 42, 2, 38, 24, "F");
-  doc.setTextColor(...NAVY);
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text("MT", pageWidth - 23, 13, { align: "center" });
-  doc.setFontSize(6);
-  doc.text("EST. 1995", pageWidth - 23, 20, { align: "center" });
-
-  // Company name
-  doc.setTextColor(...GOLD);
-  doc.setFontSize(13);
-  doc.setFont("helvetica", "bold");
-  doc.text(COMPANY.name.toUpperCase(), 10, 12);
-  doc.setTextColor(...WHITE);
-  doc.setFontSize(7.5);
-  doc.setFont("helvetica", "normal");
-  doc.text(COMPANY.tagline, 10, 19);
-  doc.text(`${COMPANY.address}  |  Tel: ${COMPANY.phones.business}  |  ${COMPANY.email}`, 10, 25);
+  if (logoDataUrl) {
+    // Real logo: place top-left, ~30mm wide
+    doc.addImage(logoDataUrl, "PNG", 8, 2, 30, 24);
+    // Company name shifted right of logo
+    doc.setTextColor(...GOLD);
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text(COMPANY.name.toUpperCase(), 42, 12);
+    doc.setTextColor(...WHITE);
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "normal");
+    doc.text(COMPANY.tagline, 42, 19);
+    doc.text(`${COMPANY.address}  |  Tel: ${COMPANY.phones.business}  |  ${COMPANY.email}`, 42, 25);
+  } else {
+    // Fallback: MT navy box
+    doc.setFillColor(...YELLOW);
+    doc.rect(pageWidth - 42, 2, 38, 24, "F");
+    doc.setTextColor(...NAVY);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("MT", pageWidth - 23, 13, { align: "center" });
+    doc.setFontSize(6);
+    doc.text("EST. 1995", pageWidth - 23, 20, { align: "center" });
+    // Company name
+    doc.setTextColor(...GOLD);
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text(COMPANY.name.toUpperCase(), 10, 12);
+    doc.setTextColor(...WHITE);
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "normal");
+    doc.text(COMPANY.tagline, 10, 19);
+    doc.text(`${COMPANY.address}  |  Tel: ${COMPANY.phones.business}  |  ${COMPANY.email}`, 10, 25);
+  }
 
   // Yellow title bar
   doc.setFillColor(...YELLOW);

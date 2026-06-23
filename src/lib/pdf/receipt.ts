@@ -8,6 +8,22 @@ async function getJsPDF() {
   return { jsPDF, autoTable };
 }
 
+async function fetchLogoDataUrl(): Promise<string | null> {
+  try {
+    const res = await fetch("/logo.png");
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 const NAVY = [26, 58, 108] as const;
 const GOLD = [245, 168, 0] as const;
 const WHITE = [255, 255, 255] as const;
@@ -20,6 +36,7 @@ export async function generateReceiptPDF(
   customerName?: string
 ): Promise<{ blob: Blob; filename: string }> {
   const { jsPDF, autoTable } = await getJsPDF();
+  const logoDataUrl = await fetchLogoDataUrl();
 
   // Receipt uses 80mm thermal-style width approximated as narrow A4
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: [80, 200] });
@@ -27,15 +44,32 @@ export async function generateReceiptPDF(
 
   doc.setFillColor(...NAVY);
   doc.rect(0, 0, pageWidth, 20, "F");
-  doc.setTextColor(...GOLD);
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.text(COMPANY.name.toUpperCase(), pageWidth / 2, 8, { align: "center" });
-  doc.setTextColor(...WHITE);
-  doc.setFontSize(5.5);
-  doc.setFont("helvetica", "normal");
-  doc.text(COMPANY.address, pageWidth / 2, 13, { align: "center" });
-  doc.text(`Tel: ${COMPANY.phones.business}`, pageWidth / 2, 17, { align: "center" });
+
+  if (logoDataUrl) {
+    // Real logo: place top-left, ~25mm wide
+    doc.addImage(logoDataUrl, "PNG", 3, 2, 25, 16);
+    // Company info to the right of logo
+    doc.setTextColor(...GOLD);
+    doc.setFontSize(6);
+    doc.setFont("helvetica", "bold");
+    doc.text(COMPANY.name.toUpperCase(), 31, 8);
+    doc.setTextColor(...WHITE);
+    doc.setFontSize(5);
+    doc.setFont("helvetica", "normal");
+    doc.text(COMPANY.address, 31, 13, { maxWidth: 46 });
+    doc.text(`Tel: ${COMPANY.phones.business}`, 31, 17);
+  } else {
+    // Fallback: centered text header
+    doc.setTextColor(...GOLD);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text(COMPANY.name.toUpperCase(), pageWidth / 2, 8, { align: "center" });
+    doc.setTextColor(...WHITE);
+    doc.setFontSize(5.5);
+    doc.setFont("helvetica", "normal");
+    doc.text(COMPANY.address, pageWidth / 2, 13, { align: "center" });
+    doc.text(`Tel: ${COMPANY.phones.business}`, pageWidth / 2, 17, { align: "center" });
+  }
 
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(7);
