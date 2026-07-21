@@ -7,17 +7,44 @@ const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
 const FALLBACK_DEV_PASSWORD = "change-me";
 const FALLBACK_DEV_SECRET = "development-only-admin-session-secret";
 const runtimeSecretFallback = crypto.randomBytes(32).toString("hex");
+let hasWarnedAboutFallbackSecret = false;
+let hasWarnedAboutFallbackPassword = false;
 
 function getAdminUsername() {
   return process.env.ADMIN_USERNAME || "admin";
 }
 
 function getAdminPassword() {
-  return process.env.ADMIN_PASSWORD || (process.env.NODE_ENV === "development" ? FALLBACK_DEV_PASSWORD : null);
+  if (process.env.ADMIN_PASSWORD) {
+    return process.env.ADMIN_PASSWORD;
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    if (!hasWarnedAboutFallbackPassword) {
+      console.warn("ADMIN_PASSWORD is not set; using the development fallback password.");
+      hasWarnedAboutFallbackPassword = true;
+    }
+    return FALLBACK_DEV_PASSWORD;
+  }
+
+  return null;
 }
 
 function getSessionSecret() {
-  return process.env.ADMIN_SESSION_SECRET || (process.env.NODE_ENV === "development" ? FALLBACK_DEV_SECRET : runtimeSecretFallback);
+  if (process.env.ADMIN_SESSION_SECRET) {
+    return process.env.ADMIN_SESSION_SECRET;
+  }
+
+  if (!hasWarnedAboutFallbackSecret) {
+    console.warn(
+      process.env.NODE_ENV === "development"
+        ? "ADMIN_SESSION_SECRET is not set; using a development-only fallback secret."
+        : "ADMIN_SESSION_SECRET is not set; using an ephemeral runtime secret and invalidating sessions on restart."
+    );
+    hasWarnedAboutFallbackSecret = true;
+  }
+
+  return process.env.NODE_ENV === "development" ? FALLBACK_DEV_SECRET : runtimeSecretFallback;
 }
 
 function sign(value: string) {

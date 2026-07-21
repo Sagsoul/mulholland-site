@@ -89,5 +89,4 @@ INSERT OR IGNORE INTO categories (id, slug, name, sort_order) VALUES
   ('hardware', 'hardware', 'Hardware', 6);
 
 INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES
-  ('invoice_sequence', '0', CURRENT_TIMESTAMP),
-  ('seller_whatsapp', '+263778955551', CURRENT_TIMESTAMP);
+  ('invoice_sequence', '0', CURRENT_TIMESTAMP);
