@@ -3,7 +3,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 const COOKIE_NAME = "mulholland_admin_session";
-const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
+const HOUR_IN_MS = 60 * 60 * 1000;
+const SESSION_TTL_MS = 12 * HOUR_IN_MS;
 const FALLBACK_DEV_PASSWORD = "change-me";
 const FALLBACK_DEV_SECRET = "development-only-admin-session-secret";
 const runtimeSecretFallback = crypto.randomBytes(32).toString("hex");

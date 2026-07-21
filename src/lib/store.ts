@@ -294,7 +294,7 @@ function getNextInvoiceNumber(now: string) {
 
 function getSaleItemsForSaleIds(saleIds: string[]) {
   const safeSaleIds = saleIds.filter((saleId) =>
-    /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(saleId)
+    /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(saleId)
   );
   if (safeSaleIds.length === 0) return [] as SaleItem[];
   const db = getDb();

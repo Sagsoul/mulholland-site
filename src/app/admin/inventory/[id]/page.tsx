@@ -42,10 +42,6 @@ export default function EditProductPage() {
     if (!response.ok) {
       throw new Error(result.error ?? "Failed to save product");
     }
-    if (isNew) {
-      router.push("/admin/inventory");
-      return;
-    }
     router.push("/admin/inventory");
   };
 

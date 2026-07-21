@@ -16,14 +16,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Image file is required" }, { status: 400 });
     }
 
+    const maxFileSizeBytes = 5 * 1024 * 1024;
+    if (file.size > maxFileSizeBytes) {
+      return NextResponse.json({ error: "Image must be 5MB or smaller" }, { status: 400 });
+    }
+
     const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
     if (!allowedMimeTypes.has(file.type)) {
       return NextResponse.json({ error: "Unsupported image type" }, { status: 400 });
     }
 
     const extension = path.extname(file.name || "").toLowerCase() || ".bin";
-    const allowedExtensions = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
-    if (!allowedExtensions.has(extension)) {
+    const allowedExtensionsByMimeType: Record<string, string[]> = {
+      "image/jpeg": [".jpg", ".jpeg"],
+      "image/png": [".png"],
+      "image/gif": [".gif"],
+      "image/webp": [".webp"],
+    };
+    if (!allowedExtensionsByMimeType[file.type]?.includes(extension)) {
       return NextResponse.json({ error: "Unsupported image type" }, { status: 400 });
     }
 

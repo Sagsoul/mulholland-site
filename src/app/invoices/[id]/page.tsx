@@ -61,9 +61,9 @@ export default async function InvoicePage({ params, searchParams }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
           <div className="bg-gray-50 rounded-lg p-4">
             <h3 className="font-semibold text-navy mb-2">Buyer</h3>
-            <p className="text-sm text-gray-700">{sale.customer_name ?? "Walk-in / not provided"}</p>
-            <p className="text-sm text-gray-700">{sale.customer_phone ?? "No contact provided"}</p>
-            <p className="text-sm text-gray-700 whitespace-pre-line">{sale.customer_address ?? "No address provided"}</p>
+            <p className="text-sm text-gray-700">{sale.customer_name ?? "Customer name not provided"}</p>
+            <p className="text-sm text-gray-700">{sale.customer_phone ?? "Customer contact not provided"}</p>
+            <p className="text-sm text-gray-700 whitespace-pre-line">{sale.customer_address ?? "Customer address not provided"}</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-4">
             <h3 className="font-semibold text-navy mb-2">Notes</h3>

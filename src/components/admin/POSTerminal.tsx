@@ -202,7 +202,13 @@ export default function POSTerminal({ products }: Props) {
           <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded text-sm mb-3">
             <p>{success}</p>
             {invoiceUrl && (
-              <a href={invoiceUrl} target="_blank" rel="noopener noreferrer" className="underline font-medium">
+              <a
+                href={invoiceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="View invoice (opens in new tab)"
+                className="underline font-medium"
+              >
                 View invoice
               </a>
             )}
