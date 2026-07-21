@@ -1,26 +1,22 @@
-import { createClient } from "@/lib/supabase/server";
 import { Product } from "@/types";
 import { formatUSD } from "@/lib/format";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import AddToCartButton from "./AddToCartButton";
-import { COMPANY } from "@/lib/constants";
+import BuyViaWhatsApp from "./BuyViaWhatsApp";
+import { getProduct as fetchProduct } from "@/lib/store";
 
 async function getProduct(id: string): Promise<Product | null> {
   try {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("products")
-      .select("*, category:categories(*)")
-      .eq("id", id)
-      .single();
-    return data as Product | null;
+    return fetchProduct(id);
   } catch {
     return null;
   }
 }
 
 interface Props { params: { id: string } }
+
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: Props) {
   const product = await getProduct(params.id);
@@ -68,25 +64,16 @@ export default async function ProductPage({ params }: Props) {
           {product.stock_qty > 0 ? (
             <>
               <p className="text-sm text-green-600 font-medium mb-4">
-                ✓ {product.is_second_hand ? "1 available" : `${product.stock_qty} in stock`}
+                ✓ {product.stock_qty === 1 ? "1 left in stock" : `${product.stock_qty} in stock`}
               </p>
               <AddToCartButton product={product} />
+              <BuyViaWhatsApp product={product} />
             </>
           ) : (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
               This item is out of stock.
             </div>
           )}
-
-          {/* WhatsApp enquiry */}
-          <a
-            href={`https://wa.me/${COMPANY.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(`Hi, I'm interested in: ${product.name} (${formatUSD(product.price_usd)})`)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 flex items-center gap-2 text-sm text-green-700 hover:text-green-800"
-          >
-            💬 Enquire via WhatsApp
-          </a>
         </div>
       </div>
     </div>

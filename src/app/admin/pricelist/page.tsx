@@ -1,21 +1,12 @@
-import { createClient } from "@/lib/supabase/server";
 import { PricelistCategory } from "@/types";
 import PriceListEditor from "@/components/admin/PriceListEditor";
+import { getPriceList as fetchPriceList } from "@/lib/store";
 
 export const metadata = { title: "Price List Editor" };
+export const dynamic = "force-dynamic";
 
 async function getPriceList(): Promise<PricelistCategory[]> {
-  const supabase = createClient();
-  const { data } = await supabase
-    .from("pricelist_categories")
-    .select("*, pricelist_rows(*)")
-    .order("sort_order");
-
-  if (!data) return [];
-  return data.map((cat: any) => ({
-    ...cat,
-    pricelist_rows: (cat.pricelist_rows ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
-  })) as PricelistCategory[];
+  return fetchPriceList();
 }
 
 export default async function AdminPriceListPage() {

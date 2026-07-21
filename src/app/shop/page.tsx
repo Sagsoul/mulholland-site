@@ -1,7 +1,6 @@
-import { Suspense } from "react";
-import { createClient } from "@/lib/supabase/server";
 import ProductGrid from "@/components/ProductGrid";
 import { Product, Category } from "@/types";
+import { getCategories as fetchCategories, getProducts as fetchProducts } from "@/lib/store";
 
 interface Props {
   searchParams: { category?: string; q?: string };
@@ -9,29 +8,7 @@ interface Props {
 
 async function getProducts(category?: string, q?: string): Promise<Product[]> {
   try {
-    const supabase = createClient();
-    let query = supabase
-      .from("products")
-      .select("*, category:categories(*)")
-      .eq("is_active", true)
-      .gt("stock_qty", 0)
-      .order("created_at", { ascending: false });
-
-    if (category) {
-      const { data: cat } = await supabase
-        .from("categories")
-        .select("id")
-        .eq("slug", category)
-        .single();
-      if (cat) query = query.eq("category_id", cat.id);
-    }
-
-    if (q) {
-      query = query.ilike("name", `%${q}%`);
-    }
-
-    const { data } = await query;
-    return (data as Product[]) ?? [];
+    return fetchProducts({ categorySlug: category, q });
   } catch {
     return [];
   }
@@ -39,18 +16,14 @@ async function getProducts(category?: string, q?: string): Promise<Product[]> {
 
 async function getCategories(): Promise<Category[]> {
   try {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("categories")
-      .select("*")
-      .order("sort_order");
-    return (data as Category[]) ?? [];
+    return fetchCategories();
   } catch {
     return [];
   }
 }
 
 export const metadata = { title: "Shop" };
+export const dynamic = "force-dynamic";
 
 export default async function ShopPage({ searchParams }: Props) {
   const [products, categories] = await Promise.all([

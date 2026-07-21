@@ -1,17 +1,12 @@
-import { createClient } from "@/lib/supabase/server";
 import { Product } from "@/types";
 import POSTerminal from "@/components/admin/POSTerminal";
+import { getProducts as fetchProducts } from "@/lib/store";
 
 export const metadata = { title: "POS Terminal" };
+export const dynamic = "force-dynamic";
 
 async function getProducts(): Promise<Product[]> {
-  const supabase = createClient();
-  const { data } = await supabase
-    .from("products")
-    .select("*, category:categories(*)")
-    .eq("is_active", true)
-    .order("name");
-  return (data as Product[]) ?? [];
+  return fetchProducts({ includeInactive: true }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export default async function POSPage() {

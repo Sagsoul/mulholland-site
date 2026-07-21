@@ -1,95 +1,153 @@
-# Mulholland Traders Pvt Ltd — E-Commerce Site
+# Mulholland Traders Pvt Ltd — SQLite E-Commerce App
 
-A full-stack e-commerce platform for **Mulholland Traders Pvt Ltd**, a Zimbabwe-based wholesaler/retailer of pipe repair, roof repair, waterproofing, heat-reflective paint, rust converter and related hardware products. The site doubles as a second-hand goods marketplace.
+This repository now contains a simple full-stack e-commerce application built with **Next.js 14 + TypeScript** and backed by **SQLite** for product, inventory, sales, invoice, and price-list data.
 
-## Tech Stack
+It is designed for a small catalog (roughly a few hundred products/variants) with:
 
-- **Frontend:** Next.js 14 (App Router) + TypeScript + Tailwind CSS
-- **Backend:** Next.js API Routes (Node.js)
-- **Database / Auth / Storage:** Supabase (PostgreSQL + Auth + Storage)
-- **PDF Generation:** jsPDF + jspdf-autotable
-- **Deployment:** Vercel
+- a public storefront
+- an admin backend for inventory and direct sales
+- local image uploads
+- invoice generation via printable HTML invoice pages
+- WhatsApp-based purchase handoff instead of online card checkout
 
-## Getting Started
+## Stack
 
-### 1. Clone & Install
+- **Frontend:** Next.js App Router + React + TypeScript + Tailwind CSS
+- **Backend:** Next.js route handlers
+- **Database:** SQLite (`better-sqlite3`)
+- **Uploads:** local filesystem in `public/uploads/`
+- **Invoices:** printable HTML invoice pages at `/invoices/:id`
 
-```bash
-git clone https://github.com/Sagsoul/mulholland-site.git
-cd mulholland-site
-npm install
-```
+## Features
 
-### 2. Environment Variables
+### Storefront
 
-Copy `.env.example` to `.env.local` and fill in your Supabase credentials:
+- Product listing at `/shop`
+- Product detail pages at `/product/[id]`
+- Exact stock display (`1 left` / `N in stock`)
+- Add-to-cart flow
+- **Buy via WhatsApp** button with prefilled product message and link back to the product
+
+### Admin
+
+- Admin login protected by env-based credentials
+- Product CRUD with stock, SKU, price, description, active flag, and local image upload
+- POS/direct sale entry at `/admin/pos`
+- Sales history at `/admin/sales`
+- Price list editor at `/admin/pricelist`
+
+### Orders / Sales
+
+- Online order capture through `/api/orders`
+- POS sale capture through `/api/pos`
+- Stock decremented transactionally when a sale is recorded
+- Invoice page generated for every sale at `/invoices/:id`
+
+## Environment Variables
+
+Copy `.env.example` to `.env.local`:
 
 ```bash
 cp .env.example .env.local
 ```
 
-### 3. Database Setup
+Supported variables:
 
-Run the SQL files against your Supabase project in order:
+| Variable | Required | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_SITE_URL` | Yes | Base URL used in metadata and WhatsApp/product links |
+| `NEXT_PUBLIC_WHATSAPP_NUMBER` | Yes | Seller WhatsApp number used in deep links |
+| `ADMIN_USERNAME` | Yes | Admin login username |
+| `ADMIN_PASSWORD` | Yes | Admin login password |
+| `ADMIN_SESSION_SECRET` | Yes | Secret used to sign the admin session cookie |
+| `SQLITE_DB_PATH` | No | SQLite file path (defaults to `./data/mulholland.sqlite3`) |
+
+## Local Development
+
+Install dependencies:
 
 ```bash
-# In Supabase SQL editor, run in this exact order:
-# 1. supabase/schema.sql        — creates all tables, triggers, and RLS policies
-# 2. supabase/seed.sql          — seeds categories, sample products, and the Jan-26 price list
-# 3. supabase/migrations/0002_seed_pricelist_products.sql  — (see Migrations section below)
+npm install
 ```
 
-### 4. Run Development Server
+Seed sample products:
+
+```bash
+npm run seed
+```
+
+Start development server:
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open:
 
-## Project Structure
+- Storefront: `http://localhost:3000/shop`
+- Admin login: `http://localhost:3000/admin/login`
 
-```
-src/
-├── app/                    # Next.js App Router pages & API routes
-│   ├── admin/              # Auth-guarded admin panel
-│   └── api/                # REST API endpoints
-├── components/             # Reusable React components
-├── context/                # React Context (cart)
-├── lib/                    # Utilities (Supabase, PDF, WhatsApp, etc.)
-└── types/                  # TypeScript types
-supabase/
-├── schema.sql              # Database schema with RLS
-└── seed.sql                # Seed data (categories, products, price list)
+## Production
+
+Create a production build:
+
+```bash
+npm run build
 ```
 
-## Key Features
+Start the production server:
 
-- 🛒 **Shop** — Product grid with category filters; sold items disappear instantly
-- 📋 **Price List** — Full retail price list rendered from DB, printable
-- 🧾 **WhatsApp Checkout** — Pro-forma PDF generated client-side, order sent via WhatsApp
-- 🏪 **POS Terminal** — In-store point-of-sale for admin
-- 📦 **Inventory Management** — CRUD products, stock management
-- 📊 **Sales Dashboard** — Online + POS sales history
+```bash
+npm run start
+```
 
-## Migrations
+## SQLite Initialization / Migration Strategy
 
-Run these SQL files in order after a fresh Supabase project is created:
+- Startup migrations live in `database/migrations/`
+- The app initializes the SQLite database automatically on first access
+- `src/lib/db.ts` applies any unapplied SQL migration files at runtime
+- Seed data is added with `npm run seed`
 
-| # | File | Purpose |
-|---|------|---------|
-| 1 | `supabase/schema.sql` | Creates all tables, triggers, storage buckets, and RLS policies |
-| 2 | `supabase/seed.sql` | Seeds 6 categories, sample second-hand products, and the full Jan-26 retail price list |
-| 3 | `supabase/migrations/0002_seed_pricelist_products.sql` | Makes every Jan-26 retail product a buyable item on `/shop` |
+## Important Routes
 
-**About migration 3:**
-- Inserts all 28 Jan-26 catalogue rows into the `products` table so they appear on `/shop` and go through the cart → WhatsApp checkout flow.
-- All rows are seeded with `stock_qty = 0` so they are hidden on the public storefront until an admin sets stock from `/admin/inventory`.
-- The public storefront filters `is_active = true AND stock_qty > 0`, so a product is only visible once the admin increments its stock.
-- The migration is **idempotent**: re-running it updates `name`, `description`, `price_usd`, and `category_id` only — it does **not** reset `stock_qty`, `is_active`, or `image_url`.
+### Pages
 
-## Contacts
+- `/shop`
+- `/product/[id]`
+- `/cart`
+- `/checkout`
+- `/admin`
+- `/admin/inventory`
+- `/admin/pos`
+- `/admin/sales`
+- `/admin/pricelist`
+- `/invoices/[id]`
 
-- **Phone / WhatsApp:** +263 77 895 5551
-- **Email:** vm@equilib.life
-- **Address:** 18 Glenelg Road, Vainona, Harare, Zimbabwe
+### API
+
+- `GET /api/products`
+- `POST /api/products`
+- `GET/PATCH/DELETE /api/products/:id`
+- `GET /api/categories`
+- `POST /api/upload`
+- `POST /api/orders`
+- `POST /api/pos`
+- `GET /api/sales`
+- `GET/PUT /api/pricelist`
+- `POST/DELETE /api/admin/session`
+
+## File Uploads
+
+- Product images upload to `public/uploads/`
+- Uploaded images are referenced by local URLs like `/uploads/<filename>`
+- Runtime uploads and SQLite DB files are gitignored
+
+## Validation
+
+Verified commands:
+
+```bash
+npm run lint
+npm run build
+npm run seed
+```

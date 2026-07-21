@@ -1,24 +1,19 @@
-import { createClient } from "@/lib/supabase/server";
-import { Product, Category } from "@/types";
+import { Product } from "@/types";
 import { formatUSD } from "@/lib/format";
 import Link from "next/link";
+import { getProducts } from "@/lib/store";
 
 export const metadata = { title: "Inventory" };
+export const dynamic = "force-dynamic";
 
 async function getData() {
-  const supabase = createClient();
-  const [productsRes, categoriesRes] = await Promise.all([
-    supabase.from("products").select("*, category:categories(*)").order("created_at", { ascending: false }),
-    supabase.from("categories").select("*").order("sort_order"),
-  ]);
   return {
-    products: (productsRes.data as Product[]) ?? [],
-    categories: (categoriesRes.data as Category[]) ?? [],
+    products: getProducts({ includeInactive: true }) as Product[],
   };
 }
 
 export default async function InventoryPage() {
-  const { products, categories } = await getData();
+  const { products } = await getData();
 
   return (
     <div>

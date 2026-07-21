@@ -1,25 +1,29 @@
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { requireAdminApiSession } from "@/lib/admin-auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServiceClient();
-    const { bucket, path, contentType } = await request.json();
-
-    if (!bucket || !path) {
-      return NextResponse.json({ error: "bucket and path are required" }, { status: 400 });
+    if (!requireAdminApiSession(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .createSignedUploadUrl(path);
+    const formData = await request.formData();
+    const file = formData.get("file");
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "Image file is required" }, { status: 400 });
+    }
 
-    if (error) throw error;
+    const extension = path.extname(file.name || "").toLowerCase() || ".bin";
+    const filename = `${randomUUID()}${extension}`;
+    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    await mkdir(uploadDir, { recursive: true });
+    await writeFile(path.join(uploadDir, filename), Buffer.from(await file.arrayBuffer()));
 
     return NextResponse.json({
-      signedUrl: data.signedUrl,
-      token: data.token,
-      path: data.path,
+      url: `/uploads/${filename}`,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -1,26 +1,12 @@
-import { createClient } from "@/lib/supabase/server";
 import StatCard from "@/components/admin/StatCard";
 import { formatUSD } from "@/lib/format";
+import { getDashboardStats as fetchDashboardStats } from "@/lib/store";
 
 export const metadata = { title: "Dashboard" };
+export const dynamic = "force-dynamic";
 
 async function getDashboardStats() {
-  const supabase = createClient();
-
-  const [productsRes, salesRes, lowStockRes] = await Promise.all([
-    supabase.from("products").select("id", { count: "exact" }).eq("is_active", true).gt("stock_qty", 0),
-    supabase.from("sales").select("total_usd, channel, created_at").order("created_at", { ascending: false }).limit(50),
-    supabase.from("products").select("id", { count: "exact" }).eq("is_active", true).eq("stock_qty", 0),
-  ]);
-
-  const activeProducts = productsRes.count ?? 0;
-  const outOfStock = lowStockRes.count ?? 0;
-  const sales = salesRes.data ?? [];
-  const totalRevenue = sales.reduce((s: number, sale: any) => s + (sale.total_usd ?? 0), 0);
-  const onlineSales = sales.filter((s: any) => s.channel === "online").length;
-  const posSales = sales.filter((s: any) => s.channel === "pos").length;
-
-  return { activeProducts, outOfStock, totalRevenue, onlineSales, posSales, recentSales: sales.slice(0, 5) };
+  return fetchDashboardStats();
 }
 
 export default async function AdminDashboard() {
