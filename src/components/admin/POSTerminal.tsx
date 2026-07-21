@@ -16,6 +16,7 @@ export default function POSTerminal({ products }: Props) {
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const filtered = products.filter(
@@ -64,6 +65,7 @@ export default function POSTerminal({ products }: Props) {
     setSubmitting(true);
     setError(null);
     setSuccess(null);
+    setInvoiceUrl(null);
     try {
       const res = await fetch("/api/pos", {
         method: "POST",
@@ -96,6 +98,7 @@ export default function POSTerminal({ products }: Props) {
       URL.revokeObjectURL(url);
 
       setSuccess(`Sale #${data.sale_id.slice(0, 8).toUpperCase()} recorded — ${formatUSD(data.total_usd)}`);
+      setInvoiceUrl(data.invoice_url ?? null);
       setCart([]);
       setCustomerName("");
       setNotes("");
@@ -195,7 +198,22 @@ export default function POSTerminal({ products }: Props) {
         </div>
 
         {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm mb-3">{error}</div>}
-        {success && <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded text-sm mb-3">{success}</div>}
+        {success && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded text-sm mb-3">
+            <p>{success}</p>
+            {invoiceUrl && (
+              <a
+                href={invoiceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="View invoice (opens in new tab)"
+                className="underline font-medium"
+              >
+                View invoice
+              </a>
+            )}
+          </div>
+        )}
 
         <button
           onClick={handleSale}

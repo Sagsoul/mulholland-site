@@ -1,27 +1,15 @@
-import { createClient } from "@/lib/supabase/server";
 import PriceListTable from "@/components/PriceListTable";
 import { PricelistCategory } from "@/types";
 import { COMPANY } from "@/lib/constants";
 import Image from "next/image";
+import { getPriceList as fetchPriceList } from "@/lib/store";
 
 export const metadata = { title: "Retail Price List" };
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 async function getPriceList(): Promise<PricelistCategory[]> {
   try {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("pricelist_categories")
-      .select("*, pricelist_rows(*)")
-      .order("sort_order");
-
-    if (!data) return [];
-    return data.map((cat: any) => ({
-      ...cat,
-      pricelist_rows: (cat.pricelist_rows ?? []).sort(
-        (a: any, b: any) => a.sort_order - b.sort_order
-      ),
-    })) as PricelistCategory[];
+    return fetchPriceList();
   } catch {
     return [];
   }

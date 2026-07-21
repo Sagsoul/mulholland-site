@@ -101,7 +101,10 @@ export default function CheckoutPage() {
       form.customer_name,
       form.customer_phone,
       form.customer_address,
-      form.notes || undefined
+      form.notes || undefined,
+      orderComplete.invoice_url
+        ? `${window.location.origin}${orderComplete.invoice_url}`
+        : undefined
     );
     const waUrl = buildWhatsAppUrl(waMessage);
 
@@ -121,6 +124,14 @@ export default function CheckoutPage() {
             <li>We&apos;ll confirm availability and arrange payment.</li>
           </ol>
         </div>
+
+        {orderComplete.invoice_url && (
+          <div className="mb-6">
+            <Link href={orderComplete.invoice_url} target="_blank" className="text-navy hover:text-gold font-medium">
+              View printable invoice →
+            </Link>
+          </div>
+        )}
 
         <a
           href={waUrl}

@@ -16,22 +16,16 @@ export default function EditProductPage() {
 
   useEffect(() => {
     async function load() {
-      const [catRes] = await Promise.all([
-        fetch("/api/products?categories=1").then((r) => r.json()).catch(() => ({ categories: [] })),
-      ]);
-
-      // Fetch categories from separate endpoint
-      const cRes = await fetch("/api/products?_meta=categories").catch(() => null);
-
-      // Simpler: fetch categories via supabase client
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const { data: cats } = await supabase.from("categories").select("*").order("sort_order");
-      setCategories((cats as Category[]) ?? []);
+      const categoriesResponse = await fetch("/api/categories");
+      const categoryData = await categoriesResponse.json();
+      setCategories((categoryData as Category[]) ?? []);
 
       if (!isNew) {
-        const { data } = await supabase.from("products").select("*, category:categories(*)").eq("id", params.id).single();
-        setProduct(data as Product);
+        const productResponse = await fetch(`/api/products/${params.id}`);
+        const productData = await productResponse.json();
+        if (productResponse.ok) {
+          setProduct(productData as Product);
+        }
       }
       setLoading(false);
     }
@@ -39,24 +33,21 @@ export default function EditProductPage() {
   }, [params.id, isNew]);
 
   const handleSave = async (data: Partial<Product>) => {
-    const { createClient } = await import("@/lib/supabase/client");
-    const supabase = createClient();
-
-    if (isNew) {
-      const { error } = await supabase.from("products").insert([data]);
-      if (error) throw new Error(error.message);
-    } else {
-      const { error } = await supabase.from("products").update(data).eq("id", params.id);
-      if (error) throw new Error(error.message);
+    const response = await fetch(isNew ? "/api/products" : `/api/products/${params.id}`, {
+      method: isNew ? "POST" : "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error ?? "Failed to save product");
     }
     router.push("/admin/inventory");
   };
 
   const handleDelete = async () => {
     if (!confirm("Delete this product? This cannot be undone.")) return;
-    const { createClient } = await import("@/lib/supabase/client");
-    const supabase = createClient();
-    await supabase.from("products").delete().eq("id", params.id);
+    await fetch(`/api/products/${params.id}`, { method: "DELETE" });
     router.push("/admin/inventory");
   };
 

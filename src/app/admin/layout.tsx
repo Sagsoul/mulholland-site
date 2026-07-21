@@ -1,14 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import Sidebar from "@/components/admin/Sidebar";
+import { requireAdminPageSession } from "@/lib/admin-auth";
 
 export const metadata = { title: { default: "Admin", template: "%s | MT Admin" } };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) redirect("/admin/login");
+  await requireAdminPageSession();
 
   return (
     <div className="flex min-h-screen bg-gray-100">

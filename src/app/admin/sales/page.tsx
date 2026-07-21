@@ -1,18 +1,13 @@
-import { createClient } from "@/lib/supabase/server";
 import { Sale } from "@/types";
 import SalesTable from "@/components/admin/SalesTable";
 import { formatUSD } from "@/lib/format";
+import { getSales as fetchSales } from "@/lib/store";
 
 export const metadata = { title: "Sales" };
+export const dynamic = "force-dynamic";
 
 async function getSales(): Promise<Sale[]> {
-  const supabase = createClient();
-  const { data } = await supabase
-    .from("sales")
-    .select("*, sale_items(*)")
-    .order("created_at", { ascending: false })
-    .limit(200);
-  return (data as Sale[]) ?? [];
+  return fetchSales({ limit: 200 });
 }
 
 export default async function SalesPage() {

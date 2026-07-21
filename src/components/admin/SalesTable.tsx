@@ -1,5 +1,6 @@
 import { Sale } from "@/types";
 import { formatUSD, formatDateTime } from "@/lib/format";
+import Link from "next/link";
 
 interface Props {
   sales: Sale[];
@@ -19,6 +20,7 @@ export default function SalesTable({ sales }: Props) {
             <th className="text-left px-4 py-3">Customer</th>
             <th className="text-left px-4 py-3">Date</th>
             <th className="text-right px-4 py-3">Total</th>
+            <th className="text-center px-4 py-3">Invoice</th>
           </tr>
         </thead>
         <tbody>
@@ -33,6 +35,11 @@ export default function SalesTable({ sales }: Props) {
               <td className="px-4 py-2 text-gray-700">{sale.customer_name ?? "—"}</td>
               <td className="px-4 py-2 text-gray-500">{formatDateTime(sale.created_at)}</td>
               <td className="px-4 py-2 text-right font-bold text-navy">{formatUSD(sale.total_usd)}</td>
+              <td className="px-4 py-2 text-center">
+                <Link href={`/invoices/${sale.id}`} target="_blank" className="text-navy hover:text-gold text-xs font-medium">
+                  View
+                </Link>
+              </td>
             </tr>
           ))}
         </tbody>

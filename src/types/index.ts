@@ -38,6 +38,7 @@ export interface SaleItem {
 
 export interface Sale {
   id: string;
+  invoice_number: string;
   channel: 'online' | 'pos';
   customer_name: string | null;
   customer_phone: string | null;

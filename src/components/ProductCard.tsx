@@ -56,6 +56,9 @@ export default function ProductCard({ product }: Props) {
           </h3>
         </Link>
         <p className="text-navy font-bold text-lg mt-2">{formatUSD(product.price_usd)}</p>
+        <p className={`text-xs mt-1 ${product.stock_qty === 1 ? "text-orange-600 font-semibold" : "text-gray-500"}`}>
+          {product.stock_qty === 1 ? "1 left" : `${product.stock_qty} in stock`}
+        </p>
 
         <div className="mt-auto pt-3">
           {product.stock_qty > 0 ? (

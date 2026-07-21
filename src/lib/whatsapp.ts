@@ -2,6 +2,29 @@ import { COMPANY } from "./constants";
 import { CartItem } from "@/types";
 import { formatUSD } from "./format";
 
+export function buildProductWhatsAppMessage({
+  productName,
+  quantity,
+  unitPriceUsd,
+  productUrl,
+}: {
+  productName: string;
+  quantity: number;
+  unitPriceUsd: number;
+  productUrl: string;
+}): string {
+  const total = unitPriceUsd * quantity;
+
+  return [
+    `Hello Mulholland Traders, I'd like to buy this item via WhatsApp.`,
+    ``,
+    `*Product:* ${productName}`,
+    `*Quantity:* ${quantity}`,
+    `*Price Summary:* ${formatUSD(unitPriceUsd)} each · ${formatUSD(total)} total`,
+    `*Product Link:* ${productUrl}`,
+  ].join("\n");
+}
+
 export function buildWhatsAppOrderMessage(
   saleId: string,
   items: CartItem[],
@@ -9,7 +32,8 @@ export function buildWhatsAppOrderMessage(
   customerName: string,
   customerPhone: string,
   customerAddress: string,
-  notes?: string
+  notes?: string,
+  summaryUrl?: string
 ): string {
   const itemLines = items
     .map(
@@ -33,6 +57,7 @@ export function buildWhatsAppOrderMessage(
     `Phone: ${customerPhone}`,
     `Address: ${customerAddress}`,
     notes ? `Notes: ${notes}` : null,
+    summaryUrl ? `Order Summary: ${summaryUrl}` : null,
     ``,
     `Please confirm availability and payment details. I have a pro-forma invoice attached.`,
   ]

@@ -13,7 +13,7 @@ export const COMPANY = {
     ruramai:  "+263773751462",
     vic:      "+263789421205",
   },
-  whatsapp: "+263778955551",
+  whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "+263778955551",
   currency: "USD",
 };
 

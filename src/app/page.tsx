@@ -1,25 +1,19 @@
 import Link from "next/link";
 import Image from "next/image";
-import { createClient } from "@/lib/supabase/server";
 import ProductGrid from "@/components/ProductGrid";
 import { COMPANY, PRODUCT_CATEGORIES } from "@/lib/constants";
 import { Product } from "@/types";
+import { getProducts } from "@/lib/store";
 
 async function getFeaturedProducts(): Promise<Product[]> {
   try {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("products")
-      .select("*, category:categories(*)")
-      .eq("is_active", true)
-      .gt("stock_qty", 0)
-      .order("created_at", { ascending: false })
-      .limit(8);
-    return (data as Product[]) ?? [];
+    return getProducts({ limit: 8 });
   } catch {
     return [];
   }
 }
+
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const featured = await getFeaturedProducts();
