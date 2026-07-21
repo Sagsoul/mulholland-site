@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteProduct, getProduct, updateProduct } from "@/lib/store";
-import { requireAdminApiSession } from "@/lib/admin-auth";
+import { requireAdminApiSession } from "@/lib/admin-auth-route";
 
 interface Params { params: { id: string } }
 

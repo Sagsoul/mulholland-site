@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminApiSession } from "@/lib/admin-auth";
+import { createInvoiceAccessToken } from "@/lib/admin-auth";
+import { requireAdminApiSession } from "@/lib/admin-auth-route";
 import { createSale } from "@/lib/store";
 
 export async function POST(request: NextRequest) {
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
       sale_id: sale.id,
       total_usd: sale.total_usd,
       items: sale.sale_items ?? [],
-      invoice_url: `/invoices/${sale.id}`,
+      invoice_url: `/invoices/${sale.id}?t=${createInvoiceAccessToken(sale.id)}`,
     });
   } catch (error: any) {
     if (error.message?.includes("Insufficient stock") || error.message?.includes("inactive")) {

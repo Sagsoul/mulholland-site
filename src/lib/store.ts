@@ -124,13 +124,24 @@ export function getProduct(id: string): Product | null {
 }
 
 function normalizeProductInput(input: Partial<Product>) {
+  const price = Number(input.price_usd ?? 0);
+  const stock = Number(input.stock_qty ?? 0);
+
+  if (!Number.isFinite(price) || price < 0) {
+    throw new Error("Price must be zero or greater");
+  }
+
+  if (!Number.isInteger(stock) || stock < 0) {
+    throw new Error("Stock quantity must be a whole number zero or greater");
+  }
+
   return {
     sku: input.sku?.trim() || null,
     name: input.name?.trim() || "",
     description: input.description?.trim() || null,
     category_id: input.category_id?.trim() || null,
-    price_usd: Number(input.price_usd ?? 0),
-    stock_qty: Math.max(0, Number(input.stock_qty ?? 0)),
+    price_usd: price,
+    stock_qty: stock,
     is_second_hand: input.is_second_hand ? 1 : 0,
     image_url: input.image_url?.trim() || null,
     is_active: input.is_active === false ? 0 : 1,
@@ -278,13 +289,14 @@ function getNextInvoiceNumber(now: string) {
   );
   const next = current + 1;
   db.prepare("UPDATE settings SET value = ?, updated_at = ? WHERE key = 'invoice_sequence'").run(String(next), now);
-  return `INV-${now.slice(0, 10).replace(/-/g, "")}-${String(next).padStart(4, "0")}`;
+  return `INV-${now.slice(0, 10).replace(/-/g, "")}-${String(next).padStart(6, "0")}`;
 }
 
 function getSaleItemsForSaleIds(saleIds: string[]) {
-  if (saleIds.length === 0) return [] as SaleItem[];
+  const safeSaleIds = saleIds.filter((saleId) => /^[a-z0-9-]+$/i.test(saleId));
+  if (safeSaleIds.length === 0) return [] as SaleItem[];
   const db = getDb();
-  const placeholders = saleIds.map(() => "?").join(", ");
+  const placeholders = safeSaleIds.map(() => "?").join(", ");
   return (db
     .prepare(`
       SELECT id, sale_id, product_id, product_name, unit_price_usd, quantity, line_total_usd
@@ -292,7 +304,7 @@ function getSaleItemsForSaleIds(saleIds: string[]) {
       WHERE sale_id IN (${placeholders})
       ORDER BY rowid ASC
     `)
-    .all(...saleIds) as SaleItem[]).map(mapSaleItem);
+    .all(...safeSaleIds) as SaleItem[]).map(mapSaleItem);
 }
 
 export function getSale(id: string): Sale | null {

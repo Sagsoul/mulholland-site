@@ -2,7 +2,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminApiSession } from "@/lib/admin-auth";
+import { requireAdminApiSession } from "@/lib/admin-auth-route";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,6 +17,11 @@ export async function POST(request: NextRequest) {
     }
 
     const extension = path.extname(file.name || "").toLowerCase() || ".bin";
+    const allowedExtensions = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
+    if (!allowedExtensions.has(extension)) {
+      return NextResponse.json({ error: "Unsupported image type" }, { status: 400 });
+    }
+
     const filename = `${randomUUID()}${extension}`;
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     await mkdir(uploadDir, { recursive: true });

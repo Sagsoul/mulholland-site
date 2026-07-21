@@ -3,11 +3,13 @@ import { getSale } from "@/lib/store";
 import { COMPANY } from "@/lib/constants";
 import { formatDateTime, formatUSD } from "@/lib/format";
 import PrintInvoiceButton from "./PrintInvoiceButton";
+import { getAdminSession, verifyInvoiceAccessToken } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
 interface Props {
   params: { id: string };
+  searchParams?: { t?: string };
 }
 
 export async function generateMetadata({ params }: Props) {
@@ -17,7 +19,12 @@ export async function generateMetadata({ params }: Props) {
   };
 }
 
-export default function InvoicePage({ params }: Props) {
+export default async function InvoicePage({ params, searchParams }: Props) {
+  const session = await getAdminSession();
+  if (!session && !verifyInvoiceAccessToken(params.id, searchParams?.t)) {
+    notFound();
+  }
+
   const sale = getSale(params.id);
   if (!sale) notFound();
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminApiSession } from "@/lib/admin-auth";
+import { requireAdminApiSession } from "@/lib/admin-auth-route";
 import { getSales } from "@/lib/store";
 
 export async function GET(request: NextRequest) {

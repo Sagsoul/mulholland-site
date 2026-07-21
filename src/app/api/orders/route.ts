@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createInvoiceAccessToken } from "@/lib/admin-auth";
 import { createSale } from "@/lib/store";
 
 export async function POST(request: NextRequest) {
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
       total_usd: sale.total_usd,
       subtotal_usd: sale.subtotal_usd,
       items: sale.sale_items ?? [],
-      invoice_url: `/invoices/${sale.id}`,
+      invoice_url: `/invoices/${sale.id}?t=${createInvoiceAccessToken(sale.id)}`,
     });
   } catch (error: any) {
     if (error.message?.includes("Insufficient stock") || error.message?.includes("inactive")) {

@@ -1,21 +1,23 @@
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { NextRequest, NextResponse } from "next/server";
 
 const COOKIE_NAME = "mulholland_admin_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
+const FALLBACK_DEV_PASSWORD = "change-me";
+const FALLBACK_DEV_SECRET = "development-only-admin-session-secret";
+const runtimeSecretFallback = crypto.randomBytes(32).toString("hex");
 
 function getAdminUsername() {
   return process.env.ADMIN_USERNAME || "admin";
 }
 
 function getAdminPassword() {
-  return process.env.ADMIN_PASSWORD || "change-me";
+  return process.env.ADMIN_PASSWORD || (process.env.NODE_ENV === "development" ? FALLBACK_DEV_PASSWORD : null);
 }
 
 function getSessionSecret() {
-  return process.env.ADMIN_SESSION_SECRET || `${getAdminUsername()}-${getAdminPassword()}-session-secret`;
+  return process.env.ADMIN_SESSION_SECRET || (process.env.NODE_ENV === "development" ? FALLBACK_DEV_SECRET : runtimeSecretFallback);
 }
 
 function sign(value: string) {
@@ -45,6 +47,10 @@ function decodeSession(token?: string | null) {
   }
 }
 
+export function getAdminSessionFromToken(token?: string | null) {
+  return decodeSession(token);
+}
+
 function getCookieConfig(expiresAt?: number) {
   return {
     httpOnly: true,
@@ -56,24 +62,28 @@ function getCookieConfig(expiresAt?: number) {
 }
 
 export function validateAdminCredentials(username: string, password: string) {
-  return username === getAdminUsername() && password === getAdminPassword();
+  const configuredPassword = getAdminPassword();
+  if (!configuredPassword) {
+    return false;
+  }
+
+  return username === getAdminUsername() && password === configuredPassword;
 }
 
-export function createAdminSessionResponse() {
+export function createAdminSessionToken() {
   const expiresAt = Date.now() + SESSION_TTL_MS;
-  const response = NextResponse.json({ success: true });
-  response.cookies.set(COOKIE_NAME, encodeSession({ username: getAdminUsername(), expiresAt }), getCookieConfig(expiresAt));
-  return response;
+  return {
+    token: encodeSession({ username: getAdminUsername(), expiresAt }),
+    expiresAt,
+  };
 }
 
-export function clearAdminSessionResponse() {
-  const response = NextResponse.json({ success: true });
-  response.cookies.set(COOKIE_NAME, "", getCookieConfig());
-  return response;
+export function getAdminSessionCookieName() {
+  return COOKIE_NAME;
 }
 
-export function getAdminSessionFromRequest(request: NextRequest) {
-  return decodeSession(request.cookies.get(COOKIE_NAME)?.value);
+export function getAdminSessionCookieConfig(expiresAt?: number) {
+  return getCookieConfig(expiresAt);
 }
 
 export async function getAdminSession() {
@@ -88,6 +98,11 @@ export async function requireAdminPageSession() {
   return session;
 }
 
-export function requireAdminApiSession(request: NextRequest) {
-  return getAdminSessionFromRequest(request);
+export function createInvoiceAccessToken(saleId: string) {
+  return sign(`invoice:${saleId}`);
+}
+
+export function verifyInvoiceAccessToken(saleId: string, token?: string | null) {
+  if (!token) return false;
+  return token === createInvoiceAccessToken(saleId);
 }

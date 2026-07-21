@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createProduct, getProducts, getCategories } from "@/lib/store";
-import { requireAdminApiSession } from "@/lib/admin-auth";
+import { requireAdminApiSession } from "@/lib/admin-auth-route";
 
 export async function GET(request: NextRequest) {
   try {

@@ -43,11 +43,19 @@ export function getDb() {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
   const db = new Database(dbPath);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-
-  runMigrations(db);
-
   global.__mulhollandDb = db;
-  return db;
+
+  const journalMode = String(db.pragma("journal_mode = WAL", { simple: true }) ?? "").toLowerCase();
+  db.pragma("foreign_keys = ON");
+  if (journalMode !== "wal") {
+    console.warn(`SQLite journal mode is "${journalMode}" instead of WAL`);
+  }
+
+  try {
+    runMigrations(db);
+    return db;
+  } catch (error) {
+    global.__mulhollandDb = undefined;
+    throw error;
+  }
 }

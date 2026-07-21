@@ -123,7 +123,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
             className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
           />
           <p className="text-xs text-gray-400 mt-1">
-            {uploading ? "Uploading image…" : "Uploads to the local /public/uploads folder."}
+            {uploading ? "Uploading image…" : "Uploaded images will be stored on the server."}
           </p>
         </div>
         <div className="flex items-center gap-6">
