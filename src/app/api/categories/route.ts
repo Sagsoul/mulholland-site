@@ -1,10 +1,2 @@
-import { NextResponse } from "next/server";
-import { getCategories } from "@/lib/store";
-
-export async function GET() {
-  try {
-    return NextResponse.json(await getCategories());
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message ?? "Failed to load categories" }, { status: 500 });
-  }
-}
+import { NextResponse } from 'next/server';
+export async function GET() { return NextResponse.json([]); }

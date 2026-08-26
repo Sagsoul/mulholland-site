@@ -1,43 +1,9 @@
-import { Sale } from "@/types";
-import SalesTable from "@/components/admin/SalesTable";
-import { formatUSD } from "@/lib/format";
-import { getSales as fetchSales } from "@/lib/store";
-
-export const metadata = { title: "Sales" };
-export const dynamic = "force-dynamic";
-
-async function getSales(): Promise<Sale[]> {
-  return fetchSales({ limit: 200 });
-}
-
-export default async function SalesPage() {
-  const sales = await getSales();
-  const totalRevenue = sales.reduce((s, sale) => s + sale.total_usd, 0);
-  const onlineCount = sales.filter((s) => s.channel === "online").length;
-  const posCount = sales.filter((s) => s.channel === "pos").length;
-
+export default function ComingSoon() {
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-navy mb-6">Sales History</h1>
-
-      {/* Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4 text-center">
-          <p className="text-xs text-gray-500 mb-1">Total Revenue</p>
-          <p className="text-2xl font-bold text-navy">{formatUSD(totalRevenue)}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 text-center">
-          <p className="text-xs text-gray-500 mb-1">Online Orders</p>
-          <p className="text-2xl font-bold text-blue-600">{onlineCount}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 text-center">
-          <p className="text-xs text-gray-500 mb-1">POS Sales</p>
-          <p className="text-2xl font-bold text-green-600">{posCount}</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <SalesTable sales={sales} />
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-gray-800 mb-4">Coming Soon</h1>
+        <p className="text-gray-500">This feature is currently under development.</p>
       </div>
     </div>
   );

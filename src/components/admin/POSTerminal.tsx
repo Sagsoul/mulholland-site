@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Product, CartItem } from "@/types";
 import { formatUSD } from "@/lib/format";
-import { generateReceiptPDF } from "@/lib/pdf/receipt";
 
 interface Props {
   products: Product[];
@@ -96,21 +95,6 @@ export default function POSTerminal({ products }: Props) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Sale failed");
-
-      // Generate receipt PDF
-      const { blob, filename } = await generateReceiptPDF(
-        data.sale_id,
-        data.items,
-        data.total_usd,
-        "pos",
-        customerName || undefined
-      );
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
 
       setSuccess(`Sale #${data.sale_id.slice(0, 8).toUpperCase()} recorded — ${formatUSD(data.total_usd)}`);
       setInvoiceUrl(data.invoice_url ?? null);

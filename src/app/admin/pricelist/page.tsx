@@ -1,22 +1,9 @@
-import { PricelistCategory } from "@/types";
-import PriceListEditor from "@/components/admin/PriceListEditor";
-import { getPriceList as fetchPriceList } from "@/lib/store";
-
-export const metadata = { title: "Price List Editor" };
-export const dynamic = "force-dynamic";
-
-async function getPriceList(): Promise<PricelistCategory[]> {
-  return fetchPriceList();
-}
-
-export default async function AdminPriceListPage() {
-  const categories = await getPriceList();
-
+export default function ComingSoon() {
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-navy mb-6">Price List Editor</h1>
-      <div className="bg-white rounded-lg shadow p-6">
-        <PriceListEditor initialCategories={categories} />
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-gray-800 mb-4">Coming Soon</h1>
+        <p className="text-gray-500">This feature is currently under development.</p>
       </div>
     </div>
   );

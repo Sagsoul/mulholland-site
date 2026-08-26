@@ -1,24 +1,10 @@
-import { Suspense } from "react";
-import { Product } from "@/types";
-import POSTerminal from "@/components/admin/POSTerminal";
-import { getProducts as fetchProducts } from "@/lib/store";
-
-export const metadata = { title: "POS Terminal" };
-export const dynamic = "force-dynamic";
-
-async function getProducts(): Promise<Product[]> {
-  const products = await fetchProducts({ includeInactive: true });
-  return products.sort((a, b) => a.name.localeCompare(b.name));
-}
-
-export default async function POSPage() {
-  const products = await getProducts();
+export default function ComingSoon() {
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-navy mb-6">POS Terminal</h1>
-      <Suspense>
-        <POSTerminal products={products} />
-      </Suspense>
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-gray-800 mb-4">Coming Soon</h1>
+        <p className="text-gray-500">This feature is currently under development.</p>
+      </div>
     </div>
   );
 }
