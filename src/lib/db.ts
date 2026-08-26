@@ -61,6 +61,80 @@ function initializeDatabase() {
             name TEXT PRIMARY KEY,
             applied_at TEXT NOT NULL
           );
+
+          CREATE TABLE IF NOT EXISTS products (
+            id TEXT PRIMARY KEY,
+            sku TEXT,
+            name TEXT NOT NULL,
+            description TEXT,
+            category_id TEXT,
+            price_usd REAL NOT NULL,
+            stock_qty INTEGER NOT NULL DEFAULT 0,
+            is_second_hand INTEGER DEFAULT 0,
+            image_url TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at TEXT,
+            updated_at TEXT
+          );
+
+          CREATE TABLE IF NOT EXISTS categories (
+            id TEXT PRIMARY KEY,
+            slug TEXT UNIQUE,
+            name TEXT NOT NULL,
+            sort_order INTEGER DEFAULT 0
+          );
+
+          CREATE TABLE IF NOT EXISTS pricelist_categories (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            note TEXT,
+            sort_order INTEGER DEFAULT 0
+          );
+
+          CREATE TABLE IF NOT EXISTS pricelist_rows (
+            id TEXT PRIMARY KEY,
+            category_id TEXT NOT NULL,
+            part_no TEXT,
+            description TEXT NOT NULL,
+            qty_per_reel INTEGER,
+            size TEXT,
+            unit TEXT,
+            price_usd REAL,
+            sort_order INTEGER DEFAULT 0,
+            FOREIGN KEY(category_id) REFERENCES pricelist_categories(id)
+          );
+
+          CREATE TABLE IF NOT EXISTS sales (
+            id TEXT PRIMARY KEY,
+            invoice_number TEXT UNIQUE,
+            channel TEXT,
+            customer_name TEXT,
+            customer_phone TEXT,
+            customer_address TEXT,
+            subtotal_usd REAL DEFAULT 0,
+            total_usd REAL DEFAULT 0,
+            notes TEXT,
+            created_by TEXT,
+            created_at TEXT
+          );
+
+          CREATE TABLE IF NOT EXISTS sale_items (
+            id TEXT PRIMARY KEY,
+            sale_id TEXT NOT NULL,
+            product_id TEXT NOT NULL,
+            product_name TEXT NOT NULL,
+            unit_price_usd REAL NOT NULL,
+            quantity INTEGER NOT NULL,
+            line_total_usd REAL NOT NULL,
+            FOREIGN KEY(sale_id) REFERENCES sales(id),
+            FOREIGN KEY(product_id) REFERENCES products(id)
+          );
+
+          CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            updated_at TEXT
+          );
           `,
           (err) => {
             if (err) {
@@ -89,53 +163,97 @@ export async function getDb() {
   }
 }
 
-export function runQuery<T = any>(sql: string, params: any[] = []): Promise<T[]> {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const database = await getDb();
-      database.all(sql, params, (err, rows) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve((rows || []) as T[]);
-        }
-      });
-    } catch (error) {
-      reject(error);
+// Synchronous wrapper for compatibility with existing code
+class DbWrapper {
+  constructor(private database: sqlite3.Database) {}
+
+  prepare(sql: string) {
+    return {
+      all: (params?: any) => {
+        return new Promise<any[]>((resolve, reject) => {
+          const finalSql = this.replaceSqlParams(sql, params);
+          this.database.all(finalSql, [], (err, rows) => {
+            if (err) reject(err);
+            else resolve((rows || []) as any[]);
+          });
+        });
+      },
+      get: (params?: any) => {
+        return new Promise<any | undefined>((resolve, reject) => {
+          const finalSql = this.replaceSqlParams(sql, params);
+          this.database.get(finalSql, [], (err, row) => {
+            if (err) reject(err);
+            else resolve((row || undefined) as any);
+          });
+        });
+      },
+      run: (params?: any) => {
+        return new Promise<{ changes: number; lastID?: number }>((resolve, reject) => {
+          const finalSql = this.replaceSqlParams(sql, params);
+          this.database.run(finalSql, [], function (err) {
+            if (err) reject(err);
+            else resolve({ changes: this.changes, lastID: this.lastID });
+          });
+        });
+      },
+    };
+  }
+
+  private replaceSqlParams(sql: string, params?: any) {
+    if (!params || typeof params !== "object") {
+      return sql;
     }
-  });
+
+    let result = sql;
+    for (const [key, value] of Object.entries(params)) {
+      const placeholder = `@${key}`;
+      if (result.includes(placeholder)) {
+        const escapedValue =
+          value === null ? "NULL" : typeof value === "string" ? `'${value.replace(/'/g, "''")}'` : String(value);
+        result = result.replace(new RegExp(placeholder, "g"), escapedValue);
+      }
+    }
+    return result;
+  }
+
+  transaction(fn: () => void) {
+    return () => {
+      return new Promise<void>((resolve, reject) => {
+        this.database.run("BEGIN TRANSACTION", (err) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          try {
+            fn();
+            this.database.run("COMMIT", (err) => {
+              if (err) reject(err);
+              else resolve();
+            });
+          } catch (error) {
+            this.database.run("ROLLBACK", () => {
+              reject(error);
+            });
+          }
+        });
+      });
+    };
+  }
+
+  exec(sql: string) {
+    return new Promise<void>((resolve, reject) => {
+      this.database.exec(sql, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  }
 }
 
-export function runQuerySingle<T = any>(sql: string, params: any[] = []): Promise<T | null> {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const database = await getDb();
-      database.get(sql, params, (err, row) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve((row as T | undefined) || null);
-        }
-      });
-    } catch (error) {
-      reject(error);
-    }
-  });
-}
-
-export function runExec(sql: string, params: any[] = []): Promise<{ lastID?: number; changes?: number }> {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const database = await getDb();
-      database.run(sql, params, function (err) {
-        if (err) {
-          reject(err);
-        } else {
-          resolve({ lastID: this.lastID, changes: this.changes });
-        }
-      });
-    } catch (error) {
-      reject(error);
-    }
-  });
+export function getDbSync() {
+  if (!db) {
+    throw new Error("Database not initialized. Call getDb() first.");
+  }
+  return new DbWrapper(db);
 }
