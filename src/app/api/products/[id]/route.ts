@@ -1,43 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
-import { deleteProduct, getProduct, updateProduct } from "@/lib/store";
-import { requireAdminApiSession } from "@/lib/admin-auth-route";
-
-interface Params { params: { id: string } }
-
-export async function GET(_request: NextRequest, { params }: Params) {
-  try {
-    const product = await getProduct(params.id);
-    if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
-    return NextResponse.json(product);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-export async function PATCH(request: NextRequest, { params }: Params) {
-  try {
-    if (!requireAdminApiSession(request)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const product = await updateProduct(params.id, body);
-    if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
-    return NextResponse.json(product);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-export async function DELETE(request: NextRequest, { params }: Params) {
-  try {
-    if (!requireAdminApiSession(request)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const deleted = await deleteProduct(params.id);
-    if (!deleted) return NextResponse.json({ error: "Product not found" }, { status: 404 });
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
+import { NextResponse } from 'next/server';
+export async function GET() { return NextResponse.json({ error: 'Coming soon' }, { status: 404 }); }
+export async function PUT() { return NextResponse.json({ error: 'Coming soon' }, { status: 404 }); }
+export async function DELETE() { return NextResponse.json({ error: 'Coming soon' }, { status: 404 }); }
