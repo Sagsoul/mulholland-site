@@ -1,61 +1,141 @@
 import fs from "node:fs";
 import path from "node:path";
-import Database from "better-sqlite3";
+import sqlite3 from "sqlite3";
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __mulhollandDb: Database.Database | undefined;
-}
+let db: sqlite3.Database | null = null;
 
 function getDatabasePath() {
   return process.env.SQLITE_DB_PATH || path.join(process.cwd(), "data", "mulholland.sqlite3");
 }
 
-function runMigrations(db: Database.Database) {
-  const migrationsDir = path.join(process.cwd(), "database", "migrations");
-  const files = fs
-    .readdirSync(migrationsDir)
-    .filter((file) => file.endsWith(".sql"))
-    .sort();
+function initializeDatabase() {
+  return new Promise<sqlite3.Database>((resolve, reject) => {
+    const dbPath = getDatabasePath();
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-  db.exec("CREATE TABLE IF NOT EXISTS applied_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)");
-  const applied = new Set(
-    (db.prepare("SELECT name FROM applied_migrations").all() as Array<{ name: string }>).map((row) => row.name)
-  );
+    const database = new sqlite3.Database(dbPath, (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
 
-  for (const file of files) {
-    if (applied.has(file)) continue;
-    const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
-    const apply = db.transaction(() => {
-      db.exec(sql);
-      db.prepare("INSERT INTO applied_migrations (name, applied_at) VALUES (?, ?)").run(file, new Date().toISOString());
+      // Enable foreign keys
+      database.run("PRAGMA foreign_keys = ON", (err) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        // Create tables
+        database.exec(
+          `
+          CREATE TABLE IF NOT EXISTS items (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL,
+            description TEXT,
+            price REAL NOT NULL,
+            stock_quantity INTEGER NOT NULL,
+            image_url TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+
+          CREATE TABLE IF NOT EXISTS invoices (
+            id TEXT PRIMARY KEY,
+            invoice_number TEXT UNIQUE,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            total_amount REAL NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS invoice_items (
+            id TEXT PRIMARY KEY,
+            invoice_id TEXT NOT NULL,
+            item_id TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            price_at_sale REAL NOT NULL,
+            FOREIGN KEY(invoice_id) REFERENCES invoices(id),
+            FOREIGN KEY(item_id) REFERENCES items(id)
+          );
+
+          CREATE TABLE IF NOT EXISTS applied_migrations (
+            name TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
+          );
+          `,
+          (err) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            resolve(database);
+          }
+        );
+      });
     });
-    apply();
-  }
+  });
 }
 
-export function getDb() {
-  if (global.__mulhollandDb) {
-    return global.__mulhollandDb;
-  }
-
-  const dbPath = getDatabasePath();
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-
-  const db = new Database(dbPath);
-  global.__mulhollandDb = db;
-
-  const journalMode = String(db.pragma("journal_mode = WAL", { simple: true }) ?? "").toLowerCase();
-  db.pragma("foreign_keys = ON");
-  if (journalMode !== "wal") {
-    console.warn(`SQLite journal mode is "${journalMode}" instead of WAL`);
+export async function getDb() {
+  if (db) {
+    return db;
   }
 
   try {
-    runMigrations(db);
+    db = await initializeDatabase();
     return db;
   } catch (error) {
-    global.__mulhollandDb = undefined;
+    console.error("Database initialization failed:", error);
     throw error;
   }
+}
+
+export function runQuery<T = any>(sql: string, params: any[] = []): Promise<T[]> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const database = await getDb();
+      database.all(sql, params, (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve((rows || []) as T[]);
+        }
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+export function runQuerySingle<T = any>(sql: string, params: any[] = []): Promise<T | null> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const database = await getDb();
+      database.get(sql, params, (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve((row as T | undefined) || null);
+        }
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+export function runExec(sql: string, params: any[] = []): Promise<{ lastID?: number; changes?: number }> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const database = await getDb();
+      database.run(sql, params, function (err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve({ lastID: this.lastID, changes: this.changes });
+        }
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
