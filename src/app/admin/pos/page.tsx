@@ -7,7 +7,8 @@ export const metadata = { title: "POS Terminal" };
 export const dynamic = "force-dynamic";
 
 async function getProducts(): Promise<Product[]> {
-  return fetchProducts({ includeInactive: true }).sort((a, b) => a.name.localeCompare(b.name));
+  const products = await fetchProducts({ includeInactive: true });
+  return products.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export default async function POSPage() {

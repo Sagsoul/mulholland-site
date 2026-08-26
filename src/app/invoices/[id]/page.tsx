@@ -13,7 +13,7 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props) {
-  const sale = getSale(params.id);
+  const sale = await getSale(params.id);
   return {
     title: sale ? `Invoice ${sale.invoice_number}` : "Invoice",
   };
@@ -25,7 +25,7 @@ export default async function InvoicePage({ params, searchParams }: Props) {
     notFound();
   }
 
-  const sale = getSale(params.id);
+  const sale = await getSale(params.id);
   if (!sale) notFound();
 
   return (

@@ -8,7 +8,7 @@ import { getProduct as fetchProduct } from "@/lib/store";
 
 async function getProduct(id: string): Promise<Product | null> {
   try {
-    return fetchProduct(id);
+    return await fetchProduct(id);
   } catch {
     return null;
   }

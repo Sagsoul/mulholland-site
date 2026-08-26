@@ -5,7 +5,7 @@ import { PricelistCategory } from "@/types";
 
 export async function GET() {
   try {
-    return NextResponse.json(getPriceList());
+    return NextResponse.json(await getPriceList());
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -17,7 +17,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { categories }: { categories: PricelistCategory[] } = await request.json();
-    savePriceList(categories);
+    await savePriceList(categories);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

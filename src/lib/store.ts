@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { getDb } from "./db";
+import { dbAll, dbGet, dbRun, dbTransaction } from "./db";
 import { Category, PricelistCategory, PricelistRow, Product, Sale, SaleItem } from "@/types";
 
 type ProductRow = {
@@ -73,21 +73,17 @@ function joinProductsBaseSql() {
   `;
 }
 
-export function getCategories(): Category[] {
-  const db = getDb();
-  return db
-    .prepare("SELECT id, slug, name, sort_order FROM categories ORDER BY sort_order, name")
-    .all() as Category[];
+export async function getCategories(): Promise<Category[]> {
+  return dbAll<Category>("SELECT id, slug, name, sort_order FROM categories ORDER BY sort_order, name");
 }
 
-export function getProducts(options?: {
+export async function getProducts(options?: {
   includeInactive?: boolean;
   categorySlug?: string | null;
   q?: string | null;
   limit?: number;
-}): Product[] {
-  const db = getDb();
-  const params: Record<string, string | number> = {};
+}): Promise<Product[]> {
+  const params: unknown[] = [];
   let sql = `${joinProductsBaseSql()} WHERE 1 = 1`;
 
   if (!options?.includeInactive) {
@@ -95,31 +91,28 @@ export function getProducts(options?: {
   }
 
   if (options?.categorySlug) {
-    sql += " AND c.slug = @categorySlug";
-    params.categorySlug = options.categorySlug;
+    sql += " AND c.slug = ?";
+    params.push(options.categorySlug);
   }
 
   if (options?.q) {
-    sql += " AND (p.name LIKE @q OR COALESCE(p.sku, '') LIKE @q OR COALESCE(p.description, '') LIKE @q)";
-    params.q = `%${options.q}%`;
+    sql += " AND (p.name LIKE ? OR COALESCE(p.sku, '') LIKE ? OR COALESCE(p.description, '') LIKE ?)";
+    params.push(`%${options.q}%`, `%${options.q}%`, `%${options.q}%`);
   }
 
   sql += " ORDER BY p.created_at DESC";
 
   if (options?.limit) {
-    sql += " LIMIT @limit";
-    params.limit = options.limit;
+    sql += " LIMIT ?";
+    params.push(options.limit);
   }
 
-  return (db.prepare(sql).all(params) as ProductRow[]).map(mapProduct);
+  const rows = await dbAll<ProductRow>(sql, params);
+  return rows.map(mapProduct);
 }
 
-export function getProduct(id: string): Product | null {
-  const db = getDb();
-  const row = db
-    .prepare(`${joinProductsBaseSql()} WHERE p.id = ? LIMIT 1`)
-    .get(id) as ProductRow | undefined;
-
+export async function getProduct(id: string): Promise<Product | null> {
+  const row = await dbGet<ProductRow>(`${joinProductsBaseSql()} WHERE p.id = ? LIMIT 1`, [id]);
   return row ? mapProduct(row) : null;
 }
 
@@ -148,76 +141,54 @@ function normalizeProductInput(input: Partial<Product>) {
   };
 }
 
-export function createProduct(input: Partial<Product>) {
-  const db = getDb();
+export async function createProduct(input: Partial<Product>): Promise<Product | null> {
   const payload = normalizeProductInput(input);
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
 
-  db.prepare(`
-    INSERT INTO products (
+  await dbRun(
+    `INSERT INTO products (
       id, sku, name, description, category_id, price_usd, stock_qty, is_second_hand, image_url, is_active, created_at, updated_at
-    ) VALUES (
-      @id, @sku, @name, @description, @category_id, @price_usd, @stock_qty, @is_second_hand, @image_url, @is_active, @created_at, @updated_at
-    )
-  `).run({
-    id,
-    ...payload,
-    created_at: now,
-    updated_at: now,
-  });
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, payload.sku, payload.name, payload.description, payload.category_id, payload.price_usd,
+     payload.stock_qty, payload.is_second_hand, payload.image_url, payload.is_active, now, now]
+  );
 
   return getProduct(id);
 }
 
-export function updateProduct(id: string, input: Partial<Product>) {
-  const existing = getProduct(id);
+export async function updateProduct(id: string, input: Partial<Product>): Promise<Product | null> {
+  const existing = await getProduct(id);
   if (!existing) return null;
 
-  const db = getDb();
   const payload = normalizeProductInput({ ...existing, ...input });
   const now = new Date().toISOString();
 
-  db.prepare(`
-    UPDATE products
-    SET
-      sku = @sku,
-      name = @name,
-      description = @description,
-      category_id = @category_id,
-      price_usd = @price_usd,
-      stock_qty = @stock_qty,
-      is_second_hand = @is_second_hand,
-      image_url = @image_url,
-      is_active = @is_active,
-      updated_at = @updated_at
-    WHERE id = @id
-  `).run({
-    id,
-    ...payload,
-    updated_at: now,
-  });
+  await dbRun(
+    `UPDATE products
+     SET sku = ?, name = ?, description = ?, category_id = ?, price_usd = ?, stock_qty = ?,
+         is_second_hand = ?, image_url = ?, is_active = ?, updated_at = ?
+     WHERE id = ?`,
+    [payload.sku, payload.name, payload.description, payload.category_id, payload.price_usd,
+     payload.stock_qty, payload.is_second_hand, payload.image_url, payload.is_active, now, id]
+  );
 
   return getProduct(id);
 }
 
-export function deleteProduct(id: string) {
-  const db = getDb();
-  return db.prepare("DELETE FROM products WHERE id = ?").run(id).changes > 0;
+export async function deleteProduct(id: string): Promise<boolean> {
+  const result = await dbRun("DELETE FROM products WHERE id = ?", [id]);
+  return result.changes > 0;
 }
 
-export function getPriceList(): PricelistCategory[] {
-  const db = getDb();
-  const categories = db
-    .prepare("SELECT id, name, note, sort_order FROM pricelist_categories ORDER BY sort_order, name")
-    .all() as PricelistCategory[];
-  const rows = db
-    .prepare(`
-      SELECT id, category_id, part_no, description, qty_per_reel, size, unit, price_usd, sort_order
-      FROM pricelist_rows
-      ORDER BY sort_order, description
-    `)
-    .all() as PricelistRow[];
+export async function getPriceList(): Promise<PricelistCategory[]> {
+  const categories = await dbAll<PricelistCategory>(
+    "SELECT id, name, note, sort_order FROM pricelist_categories ORDER BY sort_order, name"
+  );
+  const rows = await dbAll<PricelistRow>(
+    `SELECT id, category_id, part_no, description, qty_per_reel, size, unit, price_usd, sort_order
+     FROM pricelist_rows ORDER BY sort_order, description`
+  );
 
   return categories.map((category) => ({
     ...category,
@@ -230,99 +201,66 @@ export function getPriceList(): PricelistCategory[] {
   }));
 }
 
-export function savePriceList(categories: PricelistCategory[]) {
-  const db = getDb();
-  const save = db.transaction(() => {
+export async function savePriceList(categories: PricelistCategory[]): Promise<void> {
+  await dbTransaction(async ({ run }) => {
     for (const category of categories) {
-      db.prepare(`
-        INSERT INTO pricelist_categories (id, name, note, sort_order)
-        VALUES (@id, @name, @note, @sort_order)
-        ON CONFLICT(id) DO UPDATE SET
-          name = excluded.name,
-          note = excluded.note,
-          sort_order = excluded.sort_order
-      `).run({
-        id: category.id,
-        name: category.name,
-        note: category.note ?? null,
-        sort_order: category.sort_order,
-      });
+      await run(
+        `INSERT INTO pricelist_categories (id, name, note, sort_order)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET name = excluded.name, note = excluded.note, sort_order = excluded.sort_order`,
+        [category.id, category.name, category.note ?? null, category.sort_order]
+      );
 
       for (const row of category.pricelist_rows ?? []) {
-        db.prepare(`
-          INSERT INTO pricelist_rows (id, category_id, part_no, description, qty_per_reel, size, unit, price_usd, sort_order)
-          VALUES (@id, @category_id, @part_no, @description, @qty_per_reel, @size, @unit, @price_usd, @sort_order)
-          ON CONFLICT(id) DO UPDATE SET
-            part_no = excluded.part_no,
-            description = excluded.description,
-            qty_per_reel = excluded.qty_per_reel,
-            size = excluded.size,
-            unit = excluded.unit,
-            price_usd = excluded.price_usd,
-            sort_order = excluded.sort_order
-        `).run({
-          id: row.id,
-          category_id: category.id,
-          part_no: row.part_no ?? null,
-          description: row.description,
-          qty_per_reel: row.qty_per_reel ?? null,
-          size: row.size ?? null,
-          unit: row.unit ?? null,
-          price_usd: row.price_usd ?? null,
-          sort_order: row.sort_order,
-        });
+        await run(
+          `INSERT INTO pricelist_rows (id, category_id, part_no, description, qty_per_reel, size, unit, price_usd, sort_order)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             part_no = excluded.part_no, description = excluded.description,
+             qty_per_reel = excluded.qty_per_reel, size = excluded.size, unit = excluded.unit,
+             price_usd = excluded.price_usd, sort_order = excluded.sort_order`,
+          [row.id, category.id, row.part_no ?? null, row.description,
+           row.qty_per_reel ?? null, row.size ?? null, row.unit ?? null,
+           row.price_usd ?? null, row.sort_order]
+        );
       }
     }
   });
-
-  save();
 }
 
-function getNextInvoiceNumber(now: string) {
-  const db = getDb();
-  const current = Number(
-    (
-      db.prepare("SELECT value FROM settings WHERE key = 'invoice_sequence'").get() as
-        | { value?: string }
-        | undefined
-    )?.value ?? "0"
-  );
+async function getNextInvoiceNumber(now: string): Promise<string> {
+  const row = await dbGet<{ value?: string }>("SELECT value FROM settings WHERE key = 'invoice_sequence'");
+  const current = Number(row?.value ?? "0");
   const next = current + 1;
-  db.prepare("UPDATE settings SET value = ?, updated_at = ? WHERE key = 'invoice_sequence'").run(String(next), now);
+  await dbRun("UPDATE settings SET value = ?, updated_at = ? WHERE key = 'invoice_sequence'", [String(next), now]);
   return `INV-${now.slice(0, 10).replace(/-/g, "")}-${String(next).padStart(6, "0")}`;
 }
 
-function getSaleItemsForSaleIds(saleIds: string[]) {
+async function getSaleItemsForSaleIds(saleIds: string[]): Promise<SaleItem[]> {
   const safeSaleIds = saleIds.filter((saleId) =>
     /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(saleId)
   );
-  if (safeSaleIds.length === 0) return [] as SaleItem[];
-  const db = getDb();
+  if (safeSaleIds.length === 0) return [];
   const placeholders = safeSaleIds.map(() => "?").join(", ");
-  return (db
-    .prepare(`
-      SELECT id, sale_id, product_id, product_name, unit_price_usd, quantity, line_total_usd
-      FROM sale_items
-      WHERE sale_id IN (${placeholders})
-      ORDER BY rowid ASC
-    `)
-    .all(...safeSaleIds) as SaleItem[]).map(mapSaleItem);
+  const rows = await dbAll<SaleItem>(
+    `SELECT id, sale_id, product_id, product_name, unit_price_usd, quantity, line_total_usd
+     FROM sale_items WHERE sale_id IN (${placeholders}) ORDER BY rowid ASC`,
+    safeSaleIds
+  );
+  return rows.map(mapSaleItem);
 }
 
-export function getSale(id: string): Sale | null {
-  const db = getDb();
-  const sale = db
-    .prepare(`
-      SELECT id, invoice_number, channel, customer_name, customer_phone, customer_address, subtotal_usd, total_usd, notes, created_by, created_at
-      FROM sales
-      WHERE id = ?
-      LIMIT 1
-    `)
-    .get(id) as SaleRow | undefined;
+export async function getSale(id: string): Promise<Sale | null> {
+  const sale = await dbGet<SaleRow>(
+    `SELECT id, invoice_number, channel, customer_name, customer_phone, customer_address,
+            subtotal_usd, total_usd, notes, created_by, created_at
+     FROM sales WHERE id = ? LIMIT 1`,
+    [id]
+  );
 
   if (!sale) return null;
 
-  const saleItems = getSaleItemsForSaleIds([id]).filter((item) => item.sale_id === id);
+  const saleItems = (await getSaleItemsForSaleIds([id])).filter((item) => item.sale_id === id);
   return {
     ...sale,
     subtotal_usd: Number(sale.subtotal_usd),
@@ -331,39 +269,37 @@ export function getSale(id: string): Sale | null {
   };
 }
 
-export function getSales(options?: {
+export async function getSales(options?: {
   channel?: string | null;
   from?: string | null;
   to?: string | null;
   limit?: number;
-}): Sale[] {
-  const db = getDb();
-  const params: Record<string, string | number> = {
-    limit: options?.limit ?? 200,
-  };
+}): Promise<Sale[]> {
+  const params: unknown[] = [];
   let sql = `
-    SELECT id, invoice_number, channel, customer_name, customer_phone, customer_address, subtotal_usd, total_usd, notes, created_by, created_at
-    FROM sales
-    WHERE 1 = 1
+    SELECT id, invoice_number, channel, customer_name, customer_phone, customer_address,
+           subtotal_usd, total_usd, notes, created_by, created_at
+    FROM sales WHERE 1 = 1
   `;
 
   if (options?.channel) {
-    sql += " AND channel = @channel";
-    params.channel = options.channel;
+    sql += " AND channel = ?";
+    params.push(options.channel);
   }
   if (options?.from) {
-    sql += " AND created_at >= @from";
-    params.from = options.from;
+    sql += " AND created_at >= ?";
+    params.push(options.from);
   }
   if (options?.to) {
-    sql += " AND created_at <= @to";
-    params.to = options.to;
+    sql += " AND created_at <= ?";
+    params.push(options.to);
   }
 
-  sql += " ORDER BY created_at DESC LIMIT @limit";
+  sql += " ORDER BY created_at DESC LIMIT ?";
+  params.push(options?.limit ?? 200);
 
-  const sales = db.prepare(sql).all(params) as SaleRow[];
-  const items = getSaleItemsForSaleIds(sales.map((sale) => sale.id));
+  const sales = await dbAll<SaleRow>(sql, params);
+  const items = await getSaleItemsForSaleIds(sales.map((sale) => sale.id));
 
   return sales.map((sale) => ({
     ...sale,
@@ -373,7 +309,7 @@ export function getSales(options?: {
   }));
 }
 
-export function createSale(input: {
+export async function createSale(input: {
   channel: "online" | "pos";
   customer_name?: string | null;
   customer_phone?: string | null;
@@ -381,30 +317,26 @@ export function createSale(input: {
   notes?: string | null;
   items: Array<{ product_id: string; quantity: number }>;
   created_by?: string | null;
-}) {
-  const db = getDb();
+}): Promise<Sale> {
   const items = input.items.filter((item) => item.quantity > 0);
 
   if (items.length === 0) {
     throw new Error("No items provided");
   }
 
-  const create = db.transaction(() => {
+  const saleId = await dbTransaction(async ({ all, run, get }) => {
     const productIds = Array.from(new Set(items.map((item) => item.product_id)));
     const placeholders = productIds.map(() => "?").join(", ");
-    const products = db
-      .prepare(`
-        SELECT id, name, price_usd, stock_qty, is_active
-        FROM products
-        WHERE id IN (${placeholders})
-      `)
-      .all(...productIds) as Array<{
+    const products = await all<{
       id: string;
       name: string;
       price_usd: number;
       stock_qty: number;
       is_active: number;
-    }>;
+    }>(
+      `SELECT id, name, price_usd, stock_qty, is_active FROM products WHERE id IN (${placeholders})`,
+      productIds
+    );
 
     for (const item of items) {
       const product = products.find((candidate) => candidate.id === item.product_id);
@@ -417,14 +349,20 @@ export function createSale(input: {
     }
 
     const now = new Date().toISOString();
-    const saleId = crypto.randomUUID();
-    const invoiceNumber = getNextInvoiceNumber(now);
+    const id = crypto.randomUUID();
+
+    // get invoice number inside transaction
+    const seqRow = await get<{ value?: string }>("SELECT value FROM settings WHERE key = 'invoice_sequence'");
+    const current = Number(seqRow?.value ?? "0");
+    const next = current + 1;
+    await run("UPDATE settings SET value = ?, updated_at = ? WHERE key = 'invoice_sequence'", [String(next), now]);
+    const invoiceNumber = `INV-${now.slice(0, 10).replace(/-/g, "")}-${String(next).padStart(6, "0")}`;
 
     const saleItems = items.map((item) => {
       const product = products.find((candidate) => candidate.id === item.product_id)!;
       return {
         id: crypto.randomUUID(),
-        sale_id: saleId,
+        sale_id: id,
         product_id: item.product_id,
         product_name: product.name,
         unit_price_usd: Number(product.price_usd),
@@ -435,79 +373,59 @@ export function createSale(input: {
 
     const subtotal = saleItems.reduce((sum, item) => sum + item.line_total_usd, 0);
 
-    db.prepare(`
-      INSERT INTO sales (
-        id, invoice_number, channel, customer_name, customer_phone, customer_address, subtotal_usd, total_usd, notes, created_by, created_at
-      ) VALUES (
-        @id, @invoice_number, @channel, @customer_name, @customer_phone, @customer_address, @subtotal_usd, @total_usd, @notes, @created_by, @created_at
-      )
-    `).run({
-      id: saleId,
-      invoice_number: invoiceNumber,
-      channel: input.channel,
-      customer_name: input.customer_name?.trim() || null,
-      customer_phone: input.customer_phone?.trim() || null,
-      customer_address: input.customer_address?.trim() || null,
-      subtotal_usd: subtotal,
-      total_usd: subtotal,
-      notes: input.notes?.trim() || null,
-      created_by: input.created_by?.trim() || null,
-      created_at: now,
-    });
-
-    const insertSaleItem = db.prepare(`
-      INSERT INTO sale_items (
-        id, sale_id, product_id, product_name, unit_price_usd, quantity, line_total_usd
-      ) VALUES (
-        @id, @sale_id, @product_id, @product_name, @unit_price_usd, @quantity, @line_total_usd
-      )
-    `);
-
-    const updateStock = db.prepare(`
-      UPDATE products
-      SET stock_qty = stock_qty - @quantity, updated_at = @updated_at
-      WHERE id = @product_id AND stock_qty >= @quantity
-    `);
+    await run(
+      `INSERT INTO sales (
+        id, invoice_number, channel, customer_name, customer_phone, customer_address,
+        subtotal_usd, total_usd, notes, created_by, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id, invoiceNumber, input.channel,
+        input.customer_name?.trim() || null,
+        input.customer_phone?.trim() || null,
+        input.customer_address?.trim() || null,
+        subtotal, subtotal,
+        input.notes?.trim() || null,
+        input.created_by?.trim() || null,
+        now,
+      ]
+    );
 
     for (const saleItem of saleItems) {
-      const result = updateStock.run({
-        product_id: saleItem.product_id,
-        quantity: saleItem.quantity,
-        updated_at: now,
-      });
+      const result = await run(
+        `UPDATE products SET stock_qty = stock_qty - ?, updated_at = ?
+         WHERE id = ? AND stock_qty >= ?`,
+        [saleItem.quantity, now, saleItem.product_id, saleItem.quantity]
+      );
 
       if (result.changes === 0) {
         throw new Error(`Insufficient stock for "${saleItem.product_name}"`);
       }
 
-      insertSaleItem.run(saleItem);
+      await run(
+        `INSERT INTO sale_items (id, sale_id, product_id, product_name, unit_price_usd, quantity, line_total_usd)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [saleItem.id, saleItem.sale_id, saleItem.product_id, saleItem.product_name,
+         saleItem.unit_price_usd, saleItem.quantity, saleItem.line_total_usd]
+      );
     }
 
-    return saleId;
+    return id;
   });
 
-  const saleId = create();
-  return getSale(saleId)!;
+  return (await getSale(saleId))!;
 }
 
-export function getDashboardStats() {
-  const db = getDb();
-  const activeProducts =
-    (
-      db.prepare("SELECT COUNT(*) AS count FROM products WHERE is_active = 1 AND stock_qty > 0").get() as
-        | { count?: number }
-        | undefined
-    )?.count ?? 0;
-  const outOfStock =
-    (
-      db.prepare("SELECT COUNT(*) AS count FROM products WHERE is_active = 1 AND stock_qty = 0").get() as
-        | { count?: number }
-        | undefined
-    )?.count ?? 0;
-  const recentSales = getSales({ limit: 50 });
+export async function getDashboardStats() {
+  const activeRow = await dbGet<{ count?: number }>(
+    "SELECT COUNT(*) AS count FROM products WHERE is_active = 1 AND stock_qty > 0"
+  );
+  const outOfStockRow = await dbGet<{ count?: number }>(
+    "SELECT COUNT(*) AS count FROM products WHERE is_active = 1 AND stock_qty = 0"
+  );
+  const recentSales = await getSales({ limit: 50 });
   return {
-    activeProducts,
-    outOfStock,
+    activeProducts: activeRow?.count ?? 0,
+    outOfStock: outOfStockRow?.count ?? 0,
     totalRevenue: recentSales.reduce((sum, sale) => sum + sale.total_usd, 0),
     onlineSales: recentSales.filter((sale) => sale.channel === "online").length,
     posSales: recentSales.filter((sale) => sale.channel === "pos").length,

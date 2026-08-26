@@ -7,7 +7,7 @@ import { getProducts } from "@/lib/store";
 
 async function getFeaturedProducts(): Promise<Product[]> {
   try {
-    return getProducts({ limit: 8 });
+    return await getProducts({ limit: 8 });
   } catch {
     return [];
   }

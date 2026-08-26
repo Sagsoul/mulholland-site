@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const to = searchParams.get("to");
     const limit = parseInt(searchParams.get("limit") ?? "100");
 
-    return NextResponse.json(getSales({ channel, from, to, limit }));
+    return NextResponse.json(await getSales({ channel, from, to, limit }));
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
