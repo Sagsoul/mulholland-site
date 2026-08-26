@@ -251,9 +251,74 @@ class DbWrapper {
   }
 }
 
-export function getDbSync() {
-  if (!db) {
-    throw new Error("Database not initialized. Call getDb() first.");
+export async function dbAll<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> {
+  const database = await getDb();
+  return new Promise<T[]>((resolve, reject) => {
+    database.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve((rows ?? []) as T[]);
+    });
+  });
+}
+
+export async function dbGet<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T | undefined> {
+  const database = await getDb();
+  return new Promise<T | undefined>((resolve, reject) => {
+    database.get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row as T | undefined);
+    });
+  });
+}
+
+export async function dbRun(sql: string, params: unknown[] = []): Promise<{ changes: number; lastID: number }> {
+  const database = await getDb();
+  return new Promise((resolve, reject) => {
+    database.run(sql, params, function (err) {
+      if (err) reject(err);
+      else resolve({ changes: this.changes, lastID: this.lastID });
+    });
+  });
+}
+
+export async function dbTransaction<T>(fn: (helpers: {
+  all: typeof dbAll;
+  get: typeof dbGet;
+  run: typeof dbRun;
+}) => Promise<T>): Promise<T> {
+  const database = await getDb();
+
+  const run = (sql: string, params: unknown[] = []) =>
+    new Promise<{ changes: number; lastID: number }>((resolve, reject) => {
+      database.run(sql, params, function (err) {
+        if (err) reject(err);
+        else resolve({ changes: this.changes, lastID: this.lastID });
+      });
+    });
+
+  const all = <T2 = Record<string, unknown>>(sql: string, params: unknown[] = []) =>
+    new Promise<T2[]>((resolve, reject) => {
+      database.all(sql, params, (err, rows) => {
+        if (err) reject(err);
+        else resolve((rows ?? []) as T2[]);
+      });
+    });
+
+  const get = <T2 = Record<string, unknown>>(sql: string, params: unknown[] = []) =>
+    new Promise<T2 | undefined>((resolve, reject) => {
+      database.get(sql, params, (err, row) => {
+        if (err) reject(err);
+        else resolve(row as T2 | undefined);
+      });
+    });
+
+  await run("BEGIN");
+  try {
+    const result = await fn({ all: all as typeof dbAll, get: get as typeof dbGet, run });
+    await run("COMMIT");
+    return result;
+  } catch (error) {
+    await run("ROLLBACK").catch(() => {});
+    throw error;
   }
-  return new DbWrapper(db);
 }

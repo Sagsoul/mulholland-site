@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 async function getData() {
   return {
-    products: getProducts({ includeInactive: true }) as Product[],
+    products: await getProducts({ includeInactive: true }),
   };
 }
 

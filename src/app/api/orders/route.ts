@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No items provided" }, { status: 400 });
     }
 
-    const sale = createSale({
+    const sale = await createSale({
       channel: "online",
       customer_name,
       customer_phone,

@@ -6,7 +6,7 @@ interface Params { params: { id: string } }
 
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
-    const product = getProduct(params.id);
+    const product = await getProduct(params.id);
     if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
     return NextResponse.json(product);
   } catch (error: any) {
@@ -21,7 +21,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
 
     const body = await request.json();
-    const product = updateProduct(params.id, body);
+    const product = await updateProduct(params.id, body);
     if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
     return NextResponse.json(product);
   } catch (error: any) {
@@ -34,7 +34,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     if (!requireAdminApiSession(request)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const deleted = deleteProduct(params.id);
+    const deleted = await deleteProduct(params.id);
     if (!deleted) return NextResponse.json({ error: "Product not found" }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (error: any) {

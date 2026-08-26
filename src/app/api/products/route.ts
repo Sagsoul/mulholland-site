@@ -11,11 +11,11 @@ export async function GET(request: NextRequest) {
     const meta = searchParams.get("_meta");
 
     if (meta === "categories") {
-      return NextResponse.json(getCategories());
+      return NextResponse.json(await getCategories());
     }
 
     return NextResponse.json(
-      getProducts({
+      await getProducts({
         includeInactive,
         categorySlug: category,
         q,
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const product = createProduct(body);
+    const product = await createProduct(body);
     return NextResponse.json(product, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
