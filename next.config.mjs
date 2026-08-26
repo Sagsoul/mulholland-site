@@ -1,15 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '*.supabase.co',
-        port: '',
-        pathname: '/storage/v1/object/public/**',
-      },
-    ],
-  },
+  // Disable static optimization to prevent segfault during build
+  output: 'standalone',
+  productionBrowserSourceMaps: false,
 };
 
 export default nextConfig;
