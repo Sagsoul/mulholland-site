@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { Product, CartItem } from "@/types";
 import { formatUSD } from "@/lib/format";
 import { generateReceiptPDF } from "@/lib/pdf/receipt";
@@ -10,7 +11,9 @@ interface Props {
 }
 
 export default function POSTerminal({ products }: Props) {
+  const searchParams = useSearchParams();
   const [cart, setCart] = useState<CartItem[]>([]);
+  const didAutoAdd = useRef(false);
   const [search, setSearch] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [notes, setNotes] = useState("");
@@ -39,6 +42,18 @@ export default function POSTerminal({ products }: Props) {
       return [...prev, { product, quantity: 1 }];
     });
   };
+
+  // Auto-add a product when the page is opened with ?id=<productId>
+  useEffect(() => {
+    if (didAutoAdd.current) return;
+    const id = searchParams.get("id");
+    if (!id) return;
+    const product = products.find((p) => p.id === id);
+    if (product && product.stock_qty > 0) {
+      addToCart(product);
+      didAutoAdd.current = true;
+    }
+  }, [products, searchParams]);
 
   const removeFromCart = (productId: string) => {
     setCart((prev) => prev.filter((i) => i.product.id !== productId));

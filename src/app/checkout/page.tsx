@@ -104,7 +104,8 @@ export default function CheckoutPage() {
       form.notes || undefined,
       orderComplete.invoice_url
         ? `${window.location.origin}${orderComplete.invoice_url}`
-        : undefined
+        : undefined,
+      window.location.origin
     );
     const waUrl = buildWhatsAppUrl(waMessage);
 

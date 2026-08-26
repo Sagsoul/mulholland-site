@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Product } from "@/types";
 import POSTerminal from "@/components/admin/POSTerminal";
 import { getProducts as fetchProducts } from "@/lib/store";
@@ -14,7 +15,9 @@ export default async function POSPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-navy mb-6">POS Terminal</h1>
-      <POSTerminal products={products} />
+      <Suspense>
+        <POSTerminal products={products} />
+      </Suspense>
     </div>
   );
 }

@@ -33,6 +33,7 @@ It is designed for a small catalog (roughly a few hundred products/variants) wit
 - Admin login protected by env-based credentials
 - Product CRUD with stock, SKU, price, description, active flag, and local image upload
 - POS/direct sale entry at `/admin/pos`
+- `/admin/pos?id=<productId>` instantly adds that product to the active POS cart (used in WhatsApp links)
 - Sales history at `/admin/sales`
 - Price list editor at `/admin/pricelist`
 

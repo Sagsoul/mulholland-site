@@ -7,11 +7,13 @@ export function buildProductWhatsAppMessage({
   quantity,
   unitPriceUsd,
   productUrl,
+  posUrl,
 }: {
   productName: string;
   quantity: number;
   unitPriceUsd: number;
   productUrl: string;
+  posUrl?: string;
 }): string {
   const total = unitPriceUsd * quantity;
 
@@ -22,7 +24,8 @@ export function buildProductWhatsAppMessage({
     `*Quantity:* ${quantity}`,
     `*Price Summary:* ${formatUSD(unitPriceUsd)} each · ${formatUSD(total)} total`,
     `*Product Link:* ${productUrl}`,
-  ].join("\n");
+    posUrl ? `*POS Add Link:* ${posUrl}` : null,
+  ].filter((line) => line !== null).join("\n");
 }
 
 export function buildWhatsAppOrderMessage(
@@ -33,12 +36,19 @@ export function buildWhatsAppOrderMessage(
   customerPhone: string,
   customerAddress: string,
   notes?: string,
-  summaryUrl?: string
+  summaryUrl?: string,
+  siteOrigin?: string
 ): string {
   const itemLines = items
     .map(
-      (item) =>
-        `  • ${item.product.name} × ${item.quantity} @ ${formatUSD(item.product.price_usd)} = ${formatUSD(item.product.price_usd * item.quantity)}`
+      (item) => {
+        const line = `  • ${item.product.name} × ${item.quantity} @ ${formatUSD(item.product.price_usd)} = ${formatUSD(item.product.price_usd * item.quantity)}`;
+        if (siteOrigin) {
+          const posUrl = `${siteOrigin}/admin/pos?id=${item.product.id}`;
+          return `${line} — POS: ${posUrl}`;
+        }
+        return line;
+      }
     )
     .join("\n");
 

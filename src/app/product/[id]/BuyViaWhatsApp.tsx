@@ -20,15 +20,19 @@ export default function BuyViaWhatsApp({ product }: { product: Product }) {
       return "#";
     }
 
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const posUrl = origin ? `${origin}/admin/pos?id=${product.id}` : undefined;
+
     return buildWhatsAppUrl(
       buildProductWhatsAppMessage({
         productName: product.name,
         quantity,
         unitPriceUsd: product.price_usd,
         productUrl,
+        posUrl,
       })
     );
-  }, [product.name, product.price_usd, productUrl, quantity]);
+  }, [product.id, product.name, product.price_usd, productUrl, quantity]);
 
   return (
     <div className="mt-4 space-y-3">
