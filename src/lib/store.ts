@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { all, get, run, exec } from "@/lib/db";
+import { all, get, run } from "@/lib/db";
 
 export interface CategoryRecord {
   id: string;
@@ -304,10 +304,6 @@ export async function createSale(data: CreateSaleInput) {
       productCache.set(item.product_id, product);
     }
 
-    if (product.stock_qty < item.quantity) {
-      throw new Error(`Insufficient stock for ${product.name}`);
-    }
-
     const unitPrice = item.unit_price_usd ?? product.price;
     if (!Number.isFinite(unitPrice) || unitPrice < 0) {
       throw new Error("Sale item unit price must be a non-negative number");
@@ -324,7 +320,7 @@ export async function createSale(data: CreateSaleInput) {
 
   const roundedTotal = Math.round(total * 100) / 100;
 
-  await exec("BEGIN TRANSACTION;");
+  await run("BEGIN TRANSACTION;");
 
   try {
     await run(
@@ -340,15 +336,18 @@ export async function createSale(data: CreateSaleInput) {
         [item.id, saleId, item.product_id, item.quantity, item.unit_price_usd]
       );
 
-      await run(
-        "UPDATE products SET stock_qty = stock_qty - ? WHERE id = ?",
-        [item.quantity, item.product_id]
+      const stockUpdateResult = await run(
+        "UPDATE products SET stock_qty = stock_qty - ? WHERE id = ? AND stock_qty >= ?",
+        [item.quantity, item.product_id, item.quantity]
       );
+      if (stockUpdateResult.changes === 0) {
+        throw new Error("Insufficient stock to complete the sale");
+      }
     }
 
-    await exec("COMMIT;");
+    await run("COMMIT;");
   } catch (error) {
-    await exec("ROLLBACK;");
+    await run("ROLLBACK;");
     throw error;
   }
 

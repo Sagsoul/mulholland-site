@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 
 const DEV_FALLBACK_PASSWORD = "change-me";
+let hasWarnedAboutDevFallbackPassword = false;
 
 const MIGRATIONS: Array<{ id: string; sql: string }> = [
   {
@@ -72,6 +73,10 @@ function getDefaultAdminPassword() {
   }
 
   if (process.env.NODE_ENV === "development") {
+    if (!hasWarnedAboutDevFallbackPassword) {
+      console.warn("ADMIN_PASSWORD is not set; using development fallback password for the seeded admin user.");
+      hasWarnedAboutDevFallbackPassword = true;
+    }
     return DEV_FALLBACK_PASSWORD;
   }
 

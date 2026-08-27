@@ -22,11 +22,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const rawPrice = body.price ?? body.price_usd;
+    if (rawPrice === undefined || rawPrice === null || rawPrice === "") {
+      return NextResponse.json({ error: "Product price is required" }, { status: 400 });
+    }
+
     const product = await createProduct({
       name: body.name,
       sku: body.sku,
       description: body.description,
-      price: Number(body.price ?? body.price_usd),
+      price: Number(rawPrice),
       stock_qty: Number(body.stock_qty ?? 0),
       image_url: body.image_url,
       is_active: body.is_active,
