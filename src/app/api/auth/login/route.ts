@@ -1,25 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  clearAdminSessionResponse,
-  createAdminSessionResponse,
-} from "@/lib/admin-auth-route";
+import { createAdminSessionResponse } from "@/lib/admin-auth-route";
 import { validateAdminCredentials } from "@/lib/admin-auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as {
+    const { email, password } = (await request.json()) as {
       email?: string;
-      username?: string;
       password?: string;
     };
 
-    const email = body.email ?? body.username;
-
-    if (!email || !body.password) {
+    if (!email || !password) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
     }
 
-    const user = await validateAdminCredentials(email, body.password);
+    const user = await validateAdminCredentials(email, password);
     if (!user) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
@@ -28,8 +22,4 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     return NextResponse.json({ error: error.message ?? "Failed to sign in" }, { status: 500 });
   }
-}
-
-export async function DELETE() {
-  return clearAdminSessionResponse();
 }

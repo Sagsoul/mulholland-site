@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 export default function AdminLoginPage() {
-  const [username, setUsername] = useState("admin");
+  const [email, setEmail] = useState("admin");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,21 +16,27 @@ export default function AdminLoginPage() {
     setLoading(true);
     setError("");
 
-    const response = await fetch("/api/admin/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
-    const data = await response.json();
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (!response.ok) {
-      setError(data.error ?? "Failed to sign in");
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error ?? "Failed to sign in");
+        return;
+      }
+
+      router.push("/admin");
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message ?? "Failed to sign in");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    router.push("/admin");
-    router.refresh();
   };
 
   return (
@@ -44,12 +50,12 @@ export default function AdminLoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
               type="text"
               required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-navy"
               placeholder="admin"
             />
