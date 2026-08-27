@@ -1,34 +1,26 @@
 import crypto from "node:crypto";
+import bcrypt from "bcrypt";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { get } from "@/lib/db";
 
 const COOKIE_NAME = "mulholland_admin_session";
 const HOUR_IN_MS = 60 * 60 * 1000;
 const SESSION_TTL_MS = 12 * HOUR_IN_MS;
-const FALLBACK_DEV_PASSWORD = "change-me";
 const FALLBACK_DEV_SECRET = "development-only-admin-session-secret";
 const runtimeSecretFallback = crypto.randomBytes(32).toString("hex");
 let hasWarnedAboutFallbackSecret = false;
-let hasWarnedAboutFallbackPassword = false;
 
-function getAdminUsername() {
-  return process.env.ADMIN_USERNAME || "admin";
+interface SessionPayload {
+  userId: string;
+  email: string;
+  expiresAt: number;
 }
 
-function getAdminPassword() {
-  if (process.env.ADMIN_PASSWORD) {
-    return process.env.ADMIN_PASSWORD;
-  }
-
-  if (process.env.NODE_ENV === "development") {
-    if (!hasWarnedAboutFallbackPassword) {
-      console.warn("ADMIN_PASSWORD is not set; using the development fallback password.");
-      hasWarnedAboutFallbackPassword = true;
-    }
-    return FALLBACK_DEV_PASSWORD;
-  }
-
-  return null;
+interface AdminUserRecord {
+  id: string;
+  email: string;
+  password_hash: string;
 }
 
 function getSessionSecret() {
@@ -52,7 +44,7 @@ function sign(value: string) {
   return crypto.createHmac("sha256", getSessionSecret()).update(value).digest("hex");
 }
 
-function encodeSession(payload: { username: string; expiresAt: number }) {
+function encodeSession(payload: SessionPayload) {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
   return `${body}.${sign(body)}`;
 }
@@ -63,10 +55,7 @@ function decodeSession(token?: string | null) {
   if (!body || !signature || sign(body) !== signature) return null;
 
   try {
-    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as {
-      username: string;
-      expiresAt: number;
-    };
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as SessionPayload;
 
     if (payload.expiresAt < Date.now()) return null;
     return payload;
@@ -89,19 +78,32 @@ function getCookieConfig(expiresAt?: number) {
   };
 }
 
-export function validateAdminCredentials(username: string, password: string) {
-  const configuredPassword = getAdminPassword();
-  if (!configuredPassword) {
-    return false;
+export async function validateAdminCredentials(email: string, password: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await get<AdminUserRecord>(
+    "SELECT id, email, password_hash FROM users WHERE email = ?",
+    [normalizedEmail]
+  );
+
+  if (!user) {
+    return null;
   }
 
-  return username === getAdminUsername() && password === configuredPassword;
+  const isValid = await bcrypt.compare(password, user.password_hash);
+  if (!isValid) {
+    return null;
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+  };
 }
 
-export function createAdminSessionToken() {
+export function createAdminSessionToken(user: { id: string; email: string }) {
   const expiresAt = Date.now() + SESSION_TTL_MS;
   return {
-    token: encodeSession({ username: getAdminUsername(), expiresAt }),
+    token: encodeSession({ userId: user.id, email: user.email, expiresAt }),
     expiresAt,
   };
 }

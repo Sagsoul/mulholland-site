@@ -14,7 +14,7 @@ It is designed for a small catalog (roughly a few hundred products/variants) wit
 
 - **Frontend:** Next.js App Router + React + TypeScript + Tailwind CSS
 - **Backend:** Next.js route handlers
-- **Database:** SQLite (`better-sqlite3`)
+- **Database:** SQLite (`sqlite3`)
 - **Uploads:** local filesystem in `public/uploads/`
 - **Invoices:** printable HTML invoice pages at `/invoices/:id`
 
@@ -58,7 +58,7 @@ Supported variables:
 |---|---|---|
 | `NEXT_PUBLIC_SITE_URL` | Yes | Base URL used in metadata and WhatsApp/product links |
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` | Yes | Seller WhatsApp number used in deep links |
-| `ADMIN_USERNAME` | Yes | Admin login username |
+| `ADMIN_EMAIL` | Yes | Admin login email/identifier |
 | `ADMIN_PASSWORD` | Yes | Admin login password |
 | `ADMIN_SESSION_SECRET` | Yes | Secret used to sign the admin session cookie |
 | `SQLITE_DB_PATH` | No | SQLite file path (defaults to `./data/mulholland.sqlite3`) |

@@ -6,8 +6,8 @@ import {
   getAdminSessionFromToken,
 } from "@/lib/admin-auth";
 
-export function createAdminSessionResponse() {
-  const { token, expiresAt } = createAdminSessionToken();
+export function createAdminSessionResponse(user: { id: string; email: string }) {
+  const { token, expiresAt } = createAdminSessionToken(user);
   const response = NextResponse.json({ success: true });
   response.cookies.set(getAdminSessionCookieName(), token, getAdminSessionCookieConfig(expiresAt));
   return response;
