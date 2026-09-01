@@ -16,6 +16,7 @@ export interface Product {
   stock_qty: number;
   is_second_hand: boolean;
   image_url: string | null;
+  images: string[];
   is_active: boolean;
   created_at: string;
   updated_at: string;

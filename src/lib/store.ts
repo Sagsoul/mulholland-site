@@ -16,6 +16,7 @@ export interface ProductRecord {
   price: number;
   stock_qty: number;
   image_url: string | null;
+  images?: string[];
   is_active: number;
   created_at: string;
 }
@@ -51,6 +52,7 @@ export interface CreateProductInput {
   description?: string | null;
   price: number;
   stock_qty?: number;
+  images?: string[] | null;
   image_url?: string | null;
   is_active?: boolean;
 }
@@ -61,6 +63,7 @@ export interface UpdateProductInput {
   description?: string | null;
   price?: number;
   stock_qty?: number;
+  images?: string[] | null;
   image_url?: string | null;
   is_active?: boolean;
 }
@@ -75,12 +78,107 @@ export interface CreateSaleInput {
   }>;
 }
 
-function normalizeProduct(product: ProductRecord) {
+interface ProductImageRecord {
+  product_id: string;
+  image_url: string;
+  sort_order: number;
+}
+
+function normalizeProduct(product: ProductRecord, images: string[] = []) {
+  const orderedImages = images.length > 0 ? images : product.image_url ? [product.image_url] : [];
   return {
     ...product,
+    image_url: orderedImages[0] ?? null,
+    images: orderedImages,
     is_active: Boolean(product.is_active),
     price_usd: product.price,
   };
+}
+
+function slugifyName(name: string) {
+  return (
+    name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .replace(/-{2,}/g, "-") || "item"
+  );
+}
+
+function createRandomSixDigitCode() {
+  return Math.floor(Math.random() * 1_000_000)
+    .toString()
+    .padStart(6, "0");
+}
+
+async function generateUniqueSku(name: string) {
+  const slug = slugifyName(name);
+  const maxAttempts = 20;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const candidate = `PRODUCT-${slug}-${createRandomSixDigitCode()}`;
+    const existing = await get<{ id: string }>("SELECT id FROM products WHERE sku = ?", [candidate]);
+    if (!existing) {
+      return candidate;
+    }
+  }
+
+  throw new Error("Unable to generate a unique SKU, please try again");
+}
+
+function normalizeImagesInput(images?: string[] | null, imageUrl?: string | null) {
+  const source = Array.isArray(images) ? images : imageUrl === undefined ? [] : [imageUrl];
+  const normalized = source
+    .map((value) => {
+      if (typeof value !== "string") {
+        throw new Error("Each image must be a string URL");
+      }
+      return value.trim();
+    })
+    .filter(Boolean);
+
+  if (normalized.length > 4) {
+    throw new Error("A product can have at most 4 images");
+  }
+
+  return normalized;
+}
+
+async function getImagesByProductIds(productIds: string[]) {
+  const imageMap = new Map<string, string[]>();
+  if (productIds.length === 0) {
+    return imageMap;
+  }
+
+  const rows = await all<ProductImageRecord>(
+    `SELECT product_id, image_url, sort_order
+     FROM product_images
+     WHERE product_id IN (${productIds.map(() => "?").join(",")})
+     ORDER BY product_id ASC, sort_order ASC, created_at ASC`,
+    productIds
+  );
+
+  for (const row of rows) {
+    const current = imageMap.get(row.product_id) ?? [];
+    current.push(row.image_url);
+    imageMap.set(row.product_id, current);
+  }
+
+  return imageMap;
+}
+
+async function replaceProductImages(productId: string, images: string[]) {
+  await run("DELETE FROM product_images WHERE product_id = ?", [productId]);
+
+  for (const [index, imageUrl] of images.entries()) {
+    await run(`INSERT INTO product_images (id, product_id, image_url, sort_order) VALUES (?, ?, ?, ?)`, [
+      uuidv4(),
+      productId,
+      imageUrl,
+      index,
+    ]);
+  }
 }
 
 function createInvoiceNumber() {
@@ -136,7 +234,8 @@ export async function getProducts(options: GetProductsOptions = {}) {
   }
 
   const products = await all<ProductRecord>(sql, params);
-  return products.map((product) => normalizeProduct(product));
+  const imageMap = await getImagesByProductIds(products.map((product) => product.id));
+  return products.map((product) => normalizeProduct(product, imageMap.get(product.id) ?? []));
 }
 
 export async function getProductById(id: string) {
@@ -147,7 +246,12 @@ export async function getProductById(id: string) {
     [id]
   );
 
-  return product ? normalizeProduct(product) : null;
+  if (!product) {
+    return null;
+  }
+
+  const imageMap = await getImagesByProductIds([id]);
+  return normalizeProduct(product, imageMap.get(id) ?? []);
 }
 
 export async function createProduct(data: CreateProductInput) {
@@ -164,23 +268,47 @@ export async function createProduct(data: CreateProductInput) {
     throw new Error("Stock quantity must be a non-negative integer");
   }
 
-  const id = uuidv4();
-  await run(
-    `INSERT INTO products (id, name, sku, description, price, stock_qty, image_url, is_active)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      data.name.trim(),
-      data.sku?.trim() || null,
-      data.description?.trim() || null,
-      data.price,
-      stockQty,
-      data.image_url?.trim() || null,
-      data.is_active === false ? 0 : 1,
-    ]
-  );
+  const name = data.name.trim();
+  const images = normalizeImagesInput(data.images, data.image_url);
+  const providedSku = data.sku?.trim() || null;
+  const maxSkuAttempts = providedSku ? 1 : 20;
 
-  return getProductById(id);
+  for (let attempt = 0; attempt < maxSkuAttempts; attempt += 1) {
+    const sku = providedSku ?? (await generateUniqueSku(name));
+    const id = uuidv4();
+
+    await run("BEGIN TRANSACTION;");
+    try {
+      await run(
+        `INSERT INTO products (id, name, sku, description, price, stock_qty, image_url, is_active)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          name,
+          sku,
+          data.description?.trim() || null,
+          data.price,
+          stockQty,
+          images[0] ?? null,
+          data.is_active === false ? 0 : 1,
+        ]
+      );
+      await replaceProductImages(id, images);
+      await run("COMMIT;");
+      return getProductById(id);
+    } catch (error: any) {
+      await run("ROLLBACK;");
+      if (typeof error?.message === "string" && error.message.includes("UNIQUE constraint failed: products.sku")) {
+        if (!providedSku) {
+          continue;
+        }
+        throw new Error("Product SKU already exists");
+      }
+      throw error;
+    }
+  }
+
+  throw new Error("Unable to generate a unique SKU, please try again");
 }
 
 export async function updateProduct(id: string, data: UpdateProductInput) {
@@ -192,6 +320,15 @@ export async function updateProduct(id: string, data: UpdateProductInput) {
   const nextName = data.name?.trim() ?? currentProduct.name;
   const nextPrice = data.price ?? currentProduct.price;
   const nextStockQty = data.stock_qty ?? currentProduct.stock_qty;
+  const existingImages = Array.isArray(currentProduct.images)
+    ? currentProduct.images
+    : currentProduct.image_url
+      ? [currentProduct.image_url]
+      : [];
+  const nextImages =
+    data.images === undefined && data.image_url === undefined
+      ? existingImages
+      : normalizeImagesInput(data.images, data.image_url);
 
   if (!nextName) {
     throw new Error("Product name is required");
@@ -205,23 +342,55 @@ export async function updateProduct(id: string, data: UpdateProductInput) {
     throw new Error("Stock quantity must be a non-negative integer");
   }
 
-  await run(
-    `UPDATE products
-     SET name = ?, sku = ?, description = ?, price = ?, stock_qty = ?, image_url = ?, is_active = ?
-     WHERE id = ?`,
-    [
-      nextName,
-      data.sku === undefined ? currentProduct.sku : data.sku?.trim() || null,
-      data.description === undefined ? currentProduct.description : data.description?.trim() || null,
-      nextPrice,
-      nextStockQty,
-      data.image_url === undefined ? currentProduct.image_url : data.image_url?.trim() || null,
-      data.is_active === undefined ? (currentProduct.is_active ? 1 : 0) : data.is_active ? 1 : 0,
-      id,
-    ]
-  );
+  await run("BEGIN TRANSACTION;");
+  try {
+    await run(
+      `UPDATE products
+       SET name = ?, sku = ?, description = ?, price = ?, stock_qty = ?, image_url = ?, is_active = ?
+       WHERE id = ?`,
+      [
+        nextName,
+        data.sku === undefined ? currentProduct.sku : data.sku?.trim() || null,
+        data.description === undefined ? currentProduct.description : data.description?.trim() || null,
+        nextPrice,
+        nextStockQty,
+        nextImages[0] ?? null,
+        data.is_active === undefined ? (currentProduct.is_active ? 1 : 0) : data.is_active ? 1 : 0,
+        id,
+      ]
+    );
+    await replaceProductImages(id, nextImages);
+    await run("COMMIT;");
+  } catch (error: any) {
+    await run("ROLLBACK;");
+    if (typeof error?.message === "string" && error.message.includes("UNIQUE constraint failed: products.sku")) {
+      throw new Error("Product SKU already exists");
+    }
+    throw error;
+  }
 
   return getProductById(id);
+}
+
+export async function getProductBySku(sku: string) {
+  const trimmedSku = sku.trim();
+  if (!trimmedSku) {
+    return null;
+  }
+
+  const product = await get<ProductRecord>(
+    `SELECT id, name, sku, description, price, stock_qty, image_url, is_active, created_at
+     FROM products
+     WHERE sku = ?`,
+    [trimmedSku]
+  );
+
+  if (!product) {
+    return null;
+  }
+
+  const imageMap = await getImagesByProductIds([product.id]);
+  return normalizeProduct(product, imageMap.get(product.id) ?? []);
 }
 
 export async function deleteProduct(id: string) {

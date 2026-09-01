@@ -32,7 +32,7 @@ It is designed for a small catalog (roughly a few hundred products/variants) wit
 
 - Email/password admin authentication with secure session cookies
 - Signup, optional email verification, forgot-password, and token-based password reset
-- Product CRUD with stock, SKU, price, description, active flag, and local image upload
+- Product CRUD with stock, SKU, price, description, active flag, auto-SKU generation, and up to 4 local images
 - POS/direct sale entry at `/admin/pos`
 - `/admin/pos?id=<productId>` instantly adds that product to the active POS cart (used in WhatsApp links)
 - Sales history at `/admin/sales`
@@ -138,6 +138,8 @@ npm run start
 - `GET /api/products`
 - `POST /api/products`
 - `GET/PATCH/DELETE /api/products/:id`
+- `POST /api/import/inventory`
+- `GET /api/import/inventory/example`
 - `GET /api/categories`
 - `POST /api/upload`
 - `POST /api/orders`
