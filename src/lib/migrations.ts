@@ -85,6 +85,43 @@ const MIGRATIONS: Array<{ id: string; sql: string }> = [
       CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_expires_at ON email_verification_tokens(expires_at);
     `,
   },
+  {
+    id: "003_product_images",
+    sql: `
+      CREATE TABLE IF NOT EXISTS product_images (
+        id TEXT PRIMARY KEY,
+        product_id TEXT NOT NULL,
+        image_url TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_product_images_product_id_sort_order
+        ON product_images(product_id, sort_order);
+
+      INSERT INTO product_images (id, product_id, image_url, sort_order)
+      SELECT
+        lower(
+          hex(randomblob(4)) || '-' ||
+          hex(randomblob(2)) || '-' ||
+          '4' || substr(hex(randomblob(2)), 2) || '-' ||
+          substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)), 2) || '-' ||
+          hex(randomblob(6))
+        ),
+        p.id,
+        p.image_url,
+        0
+      FROM products p
+      WHERE p.image_url IS NOT NULL
+        AND trim(p.image_url) <> ''
+        AND NOT EXISTS (
+          SELECT 1
+          FROM product_images pi
+          WHERE pi.product_id = p.id
+        );
+    `,
+  },
 ];
 
 type Runner = {

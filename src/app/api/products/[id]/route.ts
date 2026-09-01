@@ -34,6 +34,7 @@ async function handleUpdate(request: NextRequest, context: Context) {
     description: body.description,
     price: body.price === undefined && body.price_usd === undefined ? undefined : Number(body.price ?? body.price_usd),
     stock_qty: body.stock_qty === undefined ? undefined : Number(body.stock_qty),
+    images: body.images,
     image_url: body.image_url,
     is_active: body.is_active,
   });

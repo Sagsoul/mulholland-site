@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       description: body.description,
       price: Number(rawPrice),
       stock_qty: Number(body.stock_qty ?? 0),
+      images: body.images,
       image_url: body.image_url,
       is_active: body.is_active,
     });
