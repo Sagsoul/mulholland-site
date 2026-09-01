@@ -54,22 +54,17 @@ export default function CartDrawer({ open, onClose }: Props) {
                     <p className="text-sm font-medium text-gray-800 truncate">{item.product.name}</p>
                     <p className="text-xs text-navy font-bold">{formatUSD(item.product.price_usd)}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      {!item.product.is_second_hand && (
-                        <>
-                          <button
-                            onClick={() => updateQty(item.product.id, item.quantity - 1)}
-                            className="w-6 h-6 rounded border border-gray-300 flex items-center justify-center text-sm hover:bg-gray-100"
-                          >−</button>
-                          <span className="text-sm">{item.quantity}</span>
-                          <button
-                            onClick={() => updateQty(item.product.id, item.quantity + 1)}
-                            className="w-6 h-6 rounded border border-gray-300 flex items-center justify-center text-sm hover:bg-gray-100"
-                          >+</button>
-                        </>
-                      )}
-                      {item.product.is_second_hand && (
-                        <span className="text-xs text-gold">Qty: 1</span>
-                      )}
+                      <>
+                        <button
+                          onClick={() => updateQty(item.product.id, item.quantity - 1)}
+                          className="w-6 h-6 rounded border border-gray-300 flex items-center justify-center text-sm hover:bg-gray-100"
+                        >−</button>
+                        <span className="text-sm">{item.quantity}</span>
+                        <button
+                          onClick={() => updateQty(item.product.id, item.quantity + 1)}
+                          className="w-6 h-6 rounded border border-gray-300 flex items-center justify-center text-sm hover:bg-gray-100"
+                        >+</button>
+                      </>
                     </div>
                   </div>
                   <button onClick={() => removeItem(item.product.id)} className="text-gray-400 hover:text-red-500">

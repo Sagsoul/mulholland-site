@@ -16,16 +16,16 @@ export interface Product {
   sku: string | null;
   name: string;
   description: string | null;
-  category_id: string | null;
+  category_id?: string | null;
   category?: Category;
   price_usd: number;
+  price?: number;
   stock_qty: number;
-  is_second_hand: boolean;
   image_url: string | null;
   images: ProductImage[];
   is_active: boolean;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 export interface CartItem {
@@ -48,8 +48,11 @@ export interface Sale {
   invoice_number: string;
   channel: 'online' | 'pos';
   customer_name: string | null;
+  customer_email: string | null;
   customer_phone: string | null;
   customer_address: string | null;
+  payment_method: string;
+  discount_amount: number;
   subtotal_usd: number;
   total_usd: number;
   notes: string | null;

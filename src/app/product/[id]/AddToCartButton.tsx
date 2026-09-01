@@ -10,7 +10,6 @@ export default function AddToCartButton({ product }: { product: Product }) {
   return (
     <button
       onClick={() => addItem(product)}
-      disabled={inCart && product.is_second_hand}
       className="btn-primary w-full text-center text-base"
     >
       {inCart ? "✓ Added to Cart" : "Add to Cart"}

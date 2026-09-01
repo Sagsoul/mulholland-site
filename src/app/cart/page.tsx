@@ -41,17 +41,13 @@ export default function CartPage() {
                 {item.product.sku && <p className="text-xs text-gray-400">{item.product.sku}</p>}
                 <p className="text-navy font-bold mt-1">{formatUSD(item.product.price_usd)}</p>
                 <div className="flex items-center gap-3 mt-2">
-                  {!item.product.is_second_hand ? (
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => updateQty(item.product.id, item.quantity - 1)}
-                        className="w-7 h-7 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100">−</button>
-                      <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
-                      <button onClick={() => updateQty(item.product.id, item.quantity + 1)}
-                        className="w-7 h-7 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100">+</button>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-gold font-medium">Qty: 1 (single item)</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => updateQty(item.product.id, item.quantity - 1)}
+                      className="w-7 h-7 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100">−</button>
+                    <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
+                    <button onClick={() => updateQty(item.product.id, item.quantity + 1)}
+                      className="w-7 h-7 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100">+</button>
+                  </div>
                   <button onClick={() => removeItem(item.product.id)}
                     className="text-sm text-red-400 hover:text-red-600 ml-auto">Remove</button>
                 </div>

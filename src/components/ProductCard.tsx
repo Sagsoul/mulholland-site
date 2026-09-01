@@ -33,11 +33,6 @@ export default function ProductCard({ product }: Props) {
             </svg>
           </div>
         )}
-        {product.is_second_hand && (
-          <span className="absolute top-2 left-2 bg-gold text-navy text-xs font-bold px-2 py-0.5 rounded">
-            Second Hand
-          </span>
-        )}
         {product.stock_qty === 0 && (
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
             <span className="bg-red-600 text-white text-sm font-bold px-3 py-1 rounded">SOLD</span>
@@ -64,8 +59,7 @@ export default function ProductCard({ product }: Props) {
           {product.stock_qty > 0 ? (
             <button
               onClick={() => addItem(product)}
-              disabled={inCart && product.is_second_hand}
-              className="w-full bg-navy text-white py-2 rounded text-sm font-medium hover:bg-navy-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-navy text-white py-2 rounded text-sm font-medium hover:bg-navy-light transition-colors"
             >
               {inCart ? "In Cart ✓" : "Add to Cart"}
             </button>
