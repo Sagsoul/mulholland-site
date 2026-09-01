@@ -18,9 +18,9 @@ export default function ProductCard({ product }: Props) {
     <div className="bg-white rounded-lg shadow hover:shadow-md transition-shadow border border-gray-100 overflow-hidden flex flex-col">
       {/* Image */}
       <Link href={`/product/${product.id}`} className="block relative h-48 bg-gray-100">
-        {product.image_url ? (
+        {(product.images?.[0]?.image_path ?? product.image_url) ? (
           <Image
-            src={product.image_url}
+            src={(product.images?.[0]?.image_path ?? product.image_url) as string}
             alt={product.name}
             fill
             className="object-cover"
