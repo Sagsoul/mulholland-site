@@ -616,7 +616,11 @@ export async function createSale(data: CreateSaleInput) {
     throw error;
   }
 
-  return getSaleById(saleId);
+  const sale = await getSaleById(saleId);
+  if (!sale) {
+    throw new Error("Failed to load created sale");
+  }
+  return sale;
 }
 
 export async function getDashboardStats() {

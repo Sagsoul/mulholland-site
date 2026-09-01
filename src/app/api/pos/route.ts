@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminApiSession } from '@/lib/admin-auth-route';
-import { createSale, getSaleById, getSales } from '@/lib/store';
+import { createSale, getSales } from '@/lib/store';
+import type { SaleRecord, SaleItemRecord } from '@/lib/store';
 
 export async function GET(request: NextRequest) {
   try {
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function sendInvoiceEmail(sale: NonNullable<Awaited<ReturnType<typeof getSaleById>>>, email: string) {
+async function sendInvoiceEmail(sale: SaleRecord & { items?: SaleItemRecord[] }, email: string) {
   const { Resend } = await import('resend');
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return;

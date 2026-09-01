@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Harare' });
 
     const summary = await get<{ count: number; revenue: number | null }>(
       `SELECT COUNT(*) as count, SUM(total_usd) as revenue
