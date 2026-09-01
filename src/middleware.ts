@@ -2,11 +2,17 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const ADMIN_SESSION_COOKIE = "mulholland_admin_session";
+const PUBLIC_ADMIN_PATHS = new Set([
+  "/admin/login",
+  "/admin/signup",
+  "/admin/forgot-password",
+  "/admin/reset-password",
+]);
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
+  if (pathname.startsWith("/admin") && !PUBLIC_ADMIN_PATHS.has(pathname)) {
     const session = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
 
     if (!session) {

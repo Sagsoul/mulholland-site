@@ -55,6 +55,36 @@ const MIGRATIONS: Array<{ id: string; sql: string }> = [
       );
     `,
   },
+  {
+    id: "002_auth_verification_and_reset_tokens",
+    sql: `
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        expires_at TEXT NOT NULL,
+        used_at TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
+      CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires_at ON password_reset_tokens(expires_at);
+
+      CREATE TABLE IF NOT EXISTS email_verification_tokens (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        expires_at TEXT NOT NULL,
+        used_at TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_user_id ON email_verification_tokens(user_id);
+      CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_expires_at ON email_verification_tokens(expires_at);
+    `,
+  },
 ];
 
 type Runner = {
@@ -100,7 +130,12 @@ async function ensureDefaultAdminUser(db: sqlite3.Database, runner: Runner) {
     const isCurrentHashValid = await bcrypt.compare(password, existing.password_hash);
     if (!isCurrentHashValid) {
       const passwordHash = await bcrypt.hash(password, 12);
-      await runner.runRaw(db, "UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, existing.id]);
+      await runner.runRaw(db, "UPDATE users SET password_hash = ?, email_verified = 1 WHERE id = ?", [
+        passwordHash,
+        existing.id,
+      ]);
+    } else {
+      await runner.runRaw(db, "UPDATE users SET email_verified = 1 WHERE id = ?", [existing.id]);
     }
     return;
   }
@@ -108,9 +143,22 @@ async function ensureDefaultAdminUser(db: sqlite3.Database, runner: Runner) {
   const passwordHash = await bcrypt.hash(password, 12);
   await runner.runRaw(
     db,
-    "INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)",
+    "INSERT INTO users (id, email, password_hash, email_verified) VALUES (?, ?, ?, 1)",
     [uuidv4(), email, passwordHash]
   );
+}
+
+async function ensureUsersEmailVerifiedColumn(db: sqlite3.Database, runner: Runner) {
+  const columns = await runner.getRaw<{ hasColumn: number }>(
+    db,
+    `SELECT COUNT(1) AS hasColumn
+     FROM pragma_table_info('users')
+     WHERE name = 'email_verified'`
+  );
+
+  if (!columns?.hasColumn) {
+    await runner.execRaw(db, "ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 1;");
+  }
 }
 
 async function ensureDefaultCategories(db: sqlite3.Database, runner: Runner) {
@@ -161,6 +209,7 @@ export async function runMigrations(db: sqlite3.Database, runner: Runner) {
     }
   }
 
+  await ensureUsersEmailVerifiedColumn(db, runner);
   await ensureDefaultAdminUser(db, runner);
   await ensureDefaultCategories(db, runner);
 }

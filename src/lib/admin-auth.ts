@@ -21,6 +21,7 @@ interface AdminUserRecord {
   id: string;
   email: string;
   password_hash: string;
+  email_verified: number;
 }
 
 function getSessionSecret() {
@@ -81,7 +82,7 @@ function getCookieConfig(expiresAt?: number) {
 export async function validateAdminCredentials(email: string, password: string) {
   const normalizedEmail = email.trim().toLowerCase();
   const user = await get<AdminUserRecord>(
-    "SELECT id, email, password_hash FROM users WHERE email = ?",
+    "SELECT id, email, password_hash, email_verified FROM users WHERE email = ?",
     [normalizedEmail]
   );
 
@@ -97,7 +98,12 @@ export async function validateAdminCredentials(email: string, password: string) 
   return {
     id: user.id,
     email: user.email,
+    emailVerified: Boolean(user.email_verified),
   };
+}
+
+export function isEmailVerificationRequired() {
+  return process.env.AUTH_REQUIRE_EMAIL_VERIFICATION !== "false";
 }
 
 export function createAdminSessionToken(user: { id: string; email: string }) {

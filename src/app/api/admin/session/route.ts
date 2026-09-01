@@ -3,7 +3,7 @@ import {
   clearAdminSessionResponse,
   createAdminSessionResponse,
 } from "@/lib/admin-auth-route";
-import { validateAdminCredentials } from "@/lib/admin-auth";
+import { isEmailVerificationRequired, validateAdminCredentials } from "@/lib/admin-auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +22,10 @@ export async function POST(request: NextRequest) {
     const user = await validateAdminCredentials(email, body.password);
     if (!user) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
+
+    if (isEmailVerificationRequired() && !user.emailVerified) {
+      return NextResponse.json({ error: "Please verify your email before signing in", code: "EMAIL_NOT_VERIFIED" }, { status: 403 });
     }
 
     return createAdminSessionResponse(user);

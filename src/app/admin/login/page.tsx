@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 
 export default function AdminLoginPage() {
@@ -9,7 +10,14 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState("");
+  const [verifiedParam, setVerifiedParam] = useState<string | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setVerifiedParam(params.get("verified"));
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +35,9 @@ export default function AdminLoginPage() {
 
       if (!response.ok) {
         setError(data.error ?? "Failed to sign in");
+        if (data.code === "EMAIL_NOT_VERIFIED") {
+          setVerificationEmail(email);
+        }
         return;
       }
 
@@ -46,6 +57,16 @@ export default function AdminLoginPage() {
           <Image src="/logo.png" alt="Mulholland Traders Pvt Ltd" width={160} height={48} className="mx-auto mb-4" />
           <h1 className="text-xl font-bold text-navy">Admin Portal</h1>
           <p className="text-sm text-gray-500">Sign in to manage your store</p>
+          {verifiedParam === "1" && (
+            <p className="mt-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">
+              Email verified successfully. You can now sign in.
+            </p>
+          )}
+          {verifiedParam === "0" && (
+            <p className="mt-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
+              Verification link is invalid or expired. Request a new one below.
+            </p>
+          )}
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
@@ -86,6 +107,28 @@ export default function AdminLoginPage() {
             {loading ? "Signing in…" : "Sign In"}
           </button>
         </form>
+
+        <div className="mt-6 text-center text-sm text-gray-500 space-y-2">
+          <p>
+            Don&apos;t have an account?{" "}
+            <Link href="/admin/signup" className="text-navy font-medium hover:underline">
+              Sign up
+            </Link>
+          </p>
+          <p>
+            <Link href="/admin/forgot-password" className="text-navy font-medium hover:underline">
+              Forgot your password?
+            </Link>
+          </p>
+          {verificationEmail && (
+            <p>
+              Need another verification email?{" "}
+              <Link href={`/admin/signup?email=${encodeURIComponent(verificationEmail)}`} className="text-navy font-medium hover:underline">
+                Resend verification
+              </Link>
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
