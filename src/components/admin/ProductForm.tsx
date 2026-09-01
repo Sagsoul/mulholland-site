@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Product } from "@/types";
 
@@ -24,10 +24,19 @@ export default function ProductForm({ product, onSave, onCancel }: Props) {
     is_active: product?.is_active ?? true,
   });
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [fileError, setFileError] = useState("");
   const [dragOver, setDragOver] = useState(false);
+
+  useEffect(() => {
+    const urls = imageFiles.map((f) => URL.createObjectURL(f));
+    setPreviews(urls);
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [imageFiles]);
 
   function validateAndAdd(newFiles: File[]) {
     setFileError("");
@@ -163,22 +172,19 @@ export default function ProductForm({ product, onSave, onCancel }: Props) {
           />
           {imageFiles.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
-              {imageFiles.map((f, i) => {
-                const src = URL.createObjectURL(f);
-                return (
-                  <div key={i} className="relative w-20 h-20 rounded border overflow-hidden group">
-                    <Image src={src} alt={`Preview ${i + 1}`} fill className="object-cover" sizes="80px" />
-                    <button
-                      type="button"
-                      aria-label={`Remove image ${i + 1}`}
-                      onClick={() => setImageFiles((prev) => prev.filter((_, j) => j !== i))}
-                      className="absolute top-0 right-0 bg-red-600 text-white text-xs w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      ×
-                    </button>
-                  </div>
-                );
-              })}
+              {previews.map((src, i) => (
+                <div key={i} className="relative w-20 h-20 rounded border overflow-hidden group">
+                  <Image src={src} alt={`Preview ${i + 1}`} fill className="object-cover" sizes="80px" />
+                  <button
+                    type="button"
+                    aria-label={`Remove image ${i + 1}`}
+                    onClick={() => setImageFiles((prev) => prev.filter((_, j) => j !== i))}
+                    className="absolute top-0 right-0 bg-red-600 text-white text-xs w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>

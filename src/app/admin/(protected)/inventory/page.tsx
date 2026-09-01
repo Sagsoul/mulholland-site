@@ -4,16 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { formatUSD } from "@/lib/format";
+import type { ProductImage } from "@/types";
 
 const MAX_IMAGES = 4;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
-
-type ProductImage = {
-  id: string;
-  image_path: string;
-  sort_order: number;
-};
 
 type Product = {
   id: string;
@@ -82,11 +77,15 @@ function ImageUploadArea({
     onChange(updated);
   }
 
-  const previews = useMemo(
-    () => files.map((f) => URL.createObjectURL(f)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [files]
-  );
+  const [previews, setPreviews] = useState<string[]>([]);
+
+  useEffect(() => {
+    const urls = files.map((f) => URL.createObjectURL(f));
+    setPreviews(urls);
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [files]);
 
   return (
     <div className="col-span-2 space-y-2">

@@ -21,16 +21,35 @@ type PreviewRow = {
 };
 
 function parseCsvPreview(text: string): { headers: string[]; rows: string[][] } | null {
+  function parseLine(line: string): string[] {
+    const values: string[] = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+        else { inQuotes = !inQuotes; }
+      } else if (ch === "," && !inQuotes) {
+        values.push(current.trim());
+        current = "";
+      } else {
+        current += ch;
+      }
+    }
+    values.push(current.trim());
+    return values;
+  }
+
   const lines = text
     .replace(/\uFEFF/g, "")
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
   if (lines.length < 2) return null;
-  const split = (line: string) => line.split(",").map((v) => v.replace(/^"|"$/g, "").trim());
   return {
-    headers: split(lines[0]),
-    rows: lines.slice(1, 6).map(split), // preview first 5 data rows
+    headers: parseLine(lines[0]),
+    rows: lines.slice(1, 6).map(parseLine),
   };
 }
 
