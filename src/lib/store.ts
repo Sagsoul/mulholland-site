@@ -32,7 +32,14 @@ export interface SaleRecord {
   invoice_number: string;
   channel: string;
   customer_name: string | null;
+  customer_email: string | null;
+  customer_phone: string | null;
+  customer_address: string | null;
+  payment_method: string;
+  discount_amount: number;
+  subtotal_usd: number;
   total_usd: number;
+  notes: string | null;
   created_at: string;
   items?: SaleItemRecord[];
 }
@@ -41,8 +48,10 @@ export interface SaleItemRecord {
   id: string;
   sale_id: string;
   product_id: string;
+  product_name: string | null;
   quantity: number;
   unit_price_usd: number;
+  line_total_usd: number;
 }
 
 export interface GetProductsOptions {
@@ -74,6 +83,13 @@ export interface UpdateProductInput {
 export interface CreateSaleInput {
   channel: string;
   customer_name?: string | null;
+  customer_email?: string | null;
+  customer_phone?: string | null;
+  customer_address?: string | null;
+  payment_method?: string;
+  discount_amount?: number;
+  discount_type?: 'fixed' | 'percent';
+  notes?: string | null;
   items: Array<{
     product_id: string;
     quantity: number;
@@ -422,7 +438,9 @@ export async function reorderProductImages(productId: string, orderedImageIds: s
 
 export async function getSales() {
   const sales = await all<SaleRecord>(
-    `SELECT id, invoice_number, channel, customer_name, total_usd, created_at
+    `SELECT id, invoice_number, channel, customer_name, customer_email, customer_phone,
+            customer_address, payment_method, discount_amount, subtotal_usd, total_usd,
+            notes, created_at
      FROM sales
      ORDER BY created_at DESC`
   );
@@ -432,7 +450,7 @@ export async function getSales() {
   }
 
   const itemRows = await all<SaleItemRecord>(
-    `SELECT id, sale_id, product_id, quantity, unit_price_usd
+    `SELECT id, sale_id, product_id, product_name, quantity, unit_price_usd, line_total_usd
      FROM sale_items
      WHERE sale_id IN (${sales.map(() => "?").join(",")})
      ORDER BY rowid ASC`,
@@ -449,6 +467,28 @@ export async function getSales() {
   return sales.map((sale) => ({ ...sale, items: itemsBySaleId.get(sale.id) ?? [] }));
 }
 
+export async function getSaleById(id: string) {
+  const sale = await get<SaleRecord>(
+    `SELECT id, invoice_number, channel, customer_name, customer_email, customer_phone,
+            customer_address, payment_method, discount_amount, subtotal_usd, total_usd,
+            notes, created_at
+     FROM sales WHERE id = ?`,
+    [id]
+  );
+
+  if (!sale) {
+    return null;
+  }
+
+  const items = await all<SaleItemRecord>(
+    `SELECT id, sale_id, product_id, product_name, quantity, unit_price_usd, line_total_usd
+     FROM sale_items WHERE sale_id = ? ORDER BY rowid ASC`,
+    [id]
+  );
+
+  return { ...sale, items };
+}
+
 export async function createSale(data: CreateSaleInput) {
   if (!data.channel?.trim()) {
     throw new Error("Sale channel is required");
@@ -458,6 +498,8 @@ export async function createSale(data: CreateSaleInput) {
     throw new Error("At least one sale item is required");
   }
 
+  const paymentMethod = data.payment_method?.trim() || "cash";
+
   const saleId = uuidv4();
   const invoiceNumber = createInvoiceNumber();
 
@@ -465,11 +507,13 @@ export async function createSale(data: CreateSaleInput) {
   const saleItems = [] as Array<{
     id: string;
     product_id: string;
+    product_name: string;
     quantity: number;
     unit_price_usd: number;
+    line_total_usd: number;
   }>;
 
-  let total = 0;
+  let subtotal = 0;
 
   for (const item of data.items) {
     if (!item.product_id) {
@@ -500,31 +544,61 @@ export async function createSale(data: CreateSaleInput) {
       throw new Error("Sale item unit price must be a non-negative number");
     }
 
-    total += unitPrice * item.quantity;
+    const lineTotal = Math.round(unitPrice * item.quantity * 100) / 100;
+    subtotal += lineTotal;
     saleItems.push({
       id: uuidv4(),
       product_id: item.product_id,
+      product_name: product.name,
       quantity: item.quantity,
       unit_price_usd: unitPrice,
+      line_total_usd: lineTotal,
     });
   }
 
-  const roundedTotal = Math.round(total * 100) / 100;
+  subtotal = Math.round(subtotal * 100) / 100;
+
+  // Calculate discount
+  let discountAmount = 0;
+  if (data.discount_amount && data.discount_amount > 0) {
+    if (data.discount_type === 'percent') {
+      discountAmount = Math.round(subtotal * (data.discount_amount / 100) * 100) / 100;
+    } else {
+      discountAmount = Math.min(data.discount_amount, subtotal);
+    }
+  }
+
+  const roundedTotal = Math.round((subtotal - discountAmount) * 100) / 100;
 
   await run("BEGIN TRANSACTION;");
 
   try {
     await run(
-      `INSERT INTO sales (id, invoice_number, channel, customer_name, total_usd)
-       VALUES (?, ?, ?, ?, ?)`,
-      [saleId, invoiceNumber, data.channel.trim(), data.customer_name?.trim() || null, roundedTotal]
+      `INSERT INTO sales (id, invoice_number, channel, customer_name, customer_email,
+                          customer_phone, customer_address, payment_method, discount_amount,
+                          subtotal_usd, total_usd, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        saleId,
+        invoiceNumber,
+        data.channel.trim(),
+        data.customer_name?.trim() || null,
+        data.customer_email?.trim() || null,
+        data.customer_phone?.trim() || null,
+        data.customer_address?.trim() || null,
+        paymentMethod,
+        discountAmount,
+        subtotal,
+        roundedTotal,
+        data.notes?.trim() || null,
+      ]
     );
 
     for (const item of saleItems) {
       await run(
-        `INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price_usd)
-         VALUES (?, ?, ?, ?, ?)`,
-        [item.id, saleId, item.product_id, item.quantity, item.unit_price_usd]
+        `INSERT INTO sale_items (id, sale_id, product_id, product_name, quantity, unit_price_usd, line_total_usd)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [item.id, saleId, item.product_id, item.product_name, item.quantity, item.unit_price_usd, item.line_total_usd]
       );
 
       const stockUpdateResult = await run(
@@ -532,7 +606,7 @@ export async function createSale(data: CreateSaleInput) {
         [item.quantity, item.product_id, item.quantity]
       );
       if (stockUpdateResult.changes === 0) {
-        throw new Error("Insufficient stock to complete the sale");
+        throw new Error(`Insufficient stock for product: ${item.product_name}`);
       }
     }
 
@@ -542,20 +616,7 @@ export async function createSale(data: CreateSaleInput) {
     throw error;
   }
 
-  const sale = await get<SaleRecord>(
-    `SELECT id, invoice_number, channel, customer_name, total_usd, created_at
-     FROM sales WHERE id = ?`,
-    [saleId]
-  );
-
-  if (!sale) {
-    throw new Error("Failed to load created sale");
-  }
-
-  return {
-    ...sale,
-    items: saleItems,
-  };
+  return getSaleById(saleId);
 }
 
 export async function getDashboardStats() {

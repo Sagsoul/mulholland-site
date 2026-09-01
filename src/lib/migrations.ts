@@ -128,6 +128,41 @@ const MIGRATIONS: Array<{ id: string; sql: string }> = [
       ALTER TABLE product_images RENAME COLUMN image_url TO image_path;
     `,
   },
+  {
+    id: "005_sales_extended_fields",
+    sql: `
+      ALTER TABLE sales ADD COLUMN customer_email TEXT;
+      ALTER TABLE sales ADD COLUMN customer_phone TEXT;
+      ALTER TABLE sales ADD COLUMN customer_address TEXT;
+      ALTER TABLE sales ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cash';
+      ALTER TABLE sales ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0;
+      ALTER TABLE sales ADD COLUMN subtotal_usd REAL NOT NULL DEFAULT 0;
+      ALTER TABLE sales ADD COLUMN notes TEXT;
+    `,
+  },
+  {
+    id: "006_invoices_table",
+    sql: `
+      CREATE TABLE IF NOT EXISTS invoices (
+        id TEXT PRIMARY KEY,
+        sale_id TEXT NOT NULL UNIQUE,
+        invoice_number TEXT NOT NULL,
+        customer_email TEXT,
+        emailed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_invoices_sale_id ON invoices(sale_id);
+    `,
+  },
+  {
+    id: "007_sale_items_product_name",
+    sql: `
+      ALTER TABLE sale_items ADD COLUMN product_name TEXT;
+      ALTER TABLE sale_items ADD COLUMN line_total_usd REAL NOT NULL DEFAULT 0;
+    `,
+  },
 ];
 
 type Runner = {

@@ -1,10 +1,15 @@
-export default function ComingSoon() {
+import { getProducts } from '@/lib/store';
+import POSTerminal from '@/components/admin/POSTerminal';
+
+export default async function POSPage() {
+  const allProducts = await getProducts({ isActive: true });
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">Coming Soon</h1>
-        <p className="text-gray-500">This feature is currently under development.</p>
+    <div className="h-full">
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-navy">POS Terminal</h1>
+        <p className="text-sm text-gray-500 mt-1">Process in-store sales.</p>
       </div>
+      <POSTerminal products={allProducts} />
     </div>
   );
 }
