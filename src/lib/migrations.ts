@@ -122,6 +122,12 @@ const MIGRATIONS: Array<{ id: string; sql: string }> = [
         );
     `,
   },
+  {
+    id: "004_rename_product_images_column",
+    sql: `
+      ALTER TABLE product_images RENAME COLUMN image_url TO image_path;
+    `,
+  },
 ];
 
 type Runner = {
