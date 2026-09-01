@@ -82,6 +82,7 @@ interface ProductImageRecord {
   product_id: string;
   image_url: string;
   sort_order: number;
+  created_at: string;
 }
 
 function normalizeProduct(product: ProductRecord, images: string[] = []) {
@@ -101,8 +102,7 @@ function slugifyName(name: string) {
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .replace(/-{2,}/g, "-") || "item"
+      .replace(/^-+|-+$/g, "") || "item"
   );
 }
 
@@ -112,23 +112,13 @@ function createRandomSixDigitCode() {
     .padStart(6, "0");
 }
 
-async function generateUniqueSku(name: string) {
+function generateSku(name: string) {
   const slug = slugifyName(name);
-  const maxAttempts = 20;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const candidate = `PRODUCT-${slug}-${createRandomSixDigitCode()}`;
-    const existing = await get<{ id: string }>("SELECT id FROM products WHERE sku = ?", [candidate]);
-    if (!existing) {
-      return candidate;
-    }
-  }
-
-  throw new Error("Unable to generate a unique SKU, please try again");
+  return `PRODUCT-${slug}-${createRandomSixDigitCode()}`;
 }
 
 function normalizeImagesInput(images?: string[] | null, imageUrl?: string | null) {
-  const source = Array.isArray(images) ? images : imageUrl === undefined ? [] : [imageUrl];
+  const source = Array.isArray(images) ? images : imageUrl == null ? [] : [imageUrl];
   const normalized = source
     .map((value) => {
       if (typeof value !== "string") {
@@ -152,7 +142,7 @@ async function getImagesByProductIds(productIds: string[]) {
   }
 
   const rows = await all<ProductImageRecord>(
-    `SELECT product_id, image_url, sort_order
+    `SELECT product_id, image_url, sort_order, created_at
      FROM product_images
      WHERE product_id IN (${productIds.map(() => "?").join(",")})
      ORDER BY product_id ASC, sort_order ASC, created_at ASC`,
@@ -274,7 +264,7 @@ export async function createProduct(data: CreateProductInput) {
   const maxSkuAttempts = providedSku ? 1 : 20;
 
   for (let attempt = 0; attempt < maxSkuAttempts; attempt += 1) {
-    const sku = providedSku ?? (await generateUniqueSku(name));
+    const sku = providedSku ?? generateSku(name);
     const id = uuidv4();
 
     await run("BEGIN TRANSACTION;");

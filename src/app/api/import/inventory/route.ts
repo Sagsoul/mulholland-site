@@ -23,8 +23,12 @@ function parseCsvLine(line: string) {
       if (inQuotes && line[index + 1] === '"') {
         current += '"';
         index += 1;
+      } else if (inQuotes) {
+        inQuotes = false;
+      } else if (current.length === 0) {
+        inQuotes = true;
       } else {
-        inQuotes = !inQuotes;
+        current += char;
       }
       continue;
     }
@@ -80,7 +84,7 @@ function getColumnIndexes(headers: string[]) {
     indexes.description < 0 ||
     indexes.is_active < 0
   ) {
-    throw new Error("CSV must include headers: name, sku, price, stock_qty, description, is_active");
+    throw new Error("CSV must include headers: name, price, stock_qty, description, is_active (sku is optional)");
   }
 
   return indexes;

@@ -101,7 +101,17 @@ const MIGRATIONS: Array<{ id: string; sql: string }> = [
         ON product_images(product_id, sort_order);
 
       INSERT INTO product_images (id, product_id, image_url, sort_order)
-      SELECT lower(hex(randomblob(16))), p.id, p.image_url, 0
+      SELECT
+        lower(
+          hex(randomblob(4)) || '-' ||
+          hex(randomblob(2)) || '-' ||
+          '4' || substr(hex(randomblob(2)), 2) || '-' ||
+          substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)), 2) || '-' ||
+          hex(randomblob(6))
+        ),
+        p.id,
+        p.image_url,
+        0
       FROM products p
       WHERE p.image_url IS NOT NULL
         AND trim(p.image_url) <> ''
