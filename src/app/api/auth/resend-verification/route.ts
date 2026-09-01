@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createEmailVerificationToken, findUserByEmail } from "@/lib/auth-users";
 import { sendEmailVerificationEmail } from "@/lib/email-service";
+import { getSiteUrl } from "@/lib/site-url";
 
-function getSiteUrl(request: NextRequest) {
-  return process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin;
-}
 
 export async function POST(request: NextRequest) {
   try {

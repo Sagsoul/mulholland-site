@@ -11,7 +11,16 @@ function getResendClient() {
 }
 
 function getFromEmail() {
-  return process.env.RESEND_FROM_EMAIL || DEFAULT_FROM_EMAIL;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (fromEmail) {
+    return fromEmail;
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("RESEND_FROM_EMAIL is required in production");
+  }
+
+  return DEFAULT_FROM_EMAIL;
 }
 
 function emailLayout(title: string, body: string) {
@@ -41,14 +50,18 @@ async function sendEmail(to: string, subject: string, html: string) {
   });
 }
 
-export async function sendWelcomeEmail(to: string) {
+export async function sendWelcomeEmail(to: string, requiresVerification: boolean) {
+  const accountMessage = requiresVerification
+    ? "Please verify your email address to activate your admin account."
+    : "You can now sign in and manage inventory, pricing, and sales.";
+
   await sendEmail(
     to,
     "Welcome to Mulholland Admin",
     emailLayout(
       "Welcome!",
       `<p style="margin:0 0 12px;font-size:15px;color:#334155;">Your admin account has been created successfully.</p>
-       <p style="margin:0;font-size:15px;color:#334155;">You can now sign in and manage inventory, pricing, and sales.</p>`
+       <p style="margin:0;font-size:15px;color:#334155;">${accountMessage}</p>`
     )
   );
 }

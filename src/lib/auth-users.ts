@@ -12,12 +12,7 @@ type UserRow = {
   email_verified: number;
 };
 
-type VerificationTokenRow = {
-  tokenId: string;
-  userId: string;
-};
-
-type ResetTokenRow = {
+type TokenRow = {
   tokenId: string;
   userId: string;
 };
@@ -50,9 +45,7 @@ async function createToken(tableName: "email_verification_tokens" | "password_re
   const token = crypto.randomBytes(32).toString("hex");
   const tokenHash = hashToken(token);
 
-  await run(`DELETE FROM ${tableName} WHERE user_id = ? OR expires_at <= datetime('now') OR used_at IS NOT NULL`, [
-    userId,
-  ]);
+  await run(`DELETE FROM ${tableName} WHERE user_id = ?`, [userId]);
   await run(
     `INSERT INTO ${tableName} (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)`,
     [uuidv4(), userId, tokenHash, getTokenExpiryDate()]
@@ -107,7 +100,7 @@ export async function createPasswordResetToken(userId: string) {
 }
 
 export async function verifyEmailToken(token: string) {
-  const record = await get<VerificationTokenRow>(
+  const record = await get<TokenRow>(
     `SELECT id AS tokenId, user_id AS userId
      FROM email_verification_tokens
      WHERE token_hash = ? AND used_at IS NULL AND expires_at > datetime('now')`,
@@ -123,7 +116,7 @@ export async function verifyEmailToken(token: string) {
 }
 
 export async function resetPasswordWithToken(token: string, password: string) {
-  const record = await get<ResetTokenRow>(
+  const record = await get<TokenRow>(
     `SELECT id AS tokenId, user_id AS userId
      FROM password_reset_tokens
      WHERE token_hash = ? AND used_at IS NULL AND expires_at > datetime('now')`,

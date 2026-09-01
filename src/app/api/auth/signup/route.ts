@@ -7,10 +7,8 @@ import {
   validatePasswordStrength,
 } from "@/lib/auth-users";
 import { sendEmailVerificationEmail, sendWelcomeEmail } from "@/lib/email-service";
+import { getSiteUrl } from "@/lib/site-url";
 
-function getSiteUrl(request: NextRequest) {
-  return process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin;
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,9 +34,10 @@ export async function POST(request: NextRequest) {
 
     const shouldVerifyEmail = isEmailVerificationRequired();
 
-    await sendWelcomeEmail(registration.user.email);
-
     if (shouldVerifyEmail) {
+      if (registration.created) {
+        await sendWelcomeEmail(registration.user.email, true);
+      }
       const token = await createEmailVerificationToken(registration.user.id);
       const verificationUrl = `${getSiteUrl(request)}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
       await sendEmailVerificationEmail(registration.user.email, verificationUrl);
@@ -48,6 +47,10 @@ export async function POST(request: NextRequest) {
         requiresEmailVerification: true,
         message: "Account created. Please check your email to verify your account.",
       });
+    }
+
+    if (registration.created) {
+      await sendWelcomeEmail(registration.user.email, false);
     }
 
     return createAdminSessionResponse({ id: registration.user.id, email: registration.user.email });

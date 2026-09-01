@@ -3,7 +3,8 @@ import {
   clearAdminSessionResponse,
   createAdminSessionResponse,
 } from "@/lib/admin-auth-route";
-import { isEmailVerificationRequired, validateAdminCredentials } from "@/lib/admin-auth";
+import { validateAdminCredentials } from "@/lib/admin-auth";
+import { isEmailVerificationRequired } from "@/lib/auth-users";
 
 export async function POST(request: NextRequest) {
   try {

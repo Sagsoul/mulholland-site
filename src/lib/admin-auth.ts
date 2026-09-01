@@ -102,10 +102,6 @@ export async function validateAdminCredentials(email: string, password: string) 
   };
 }
 
-export function isEmailVerificationRequired() {
-  return process.env.AUTH_REQUIRE_EMAIL_VERIFICATION !== "false";
-}
-
 export function createAdminSessionToken(user: { id: string; email: string }) {
   const expiresAt = Date.now() + SESSION_TTL_MS;
   return {
