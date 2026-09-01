@@ -5,6 +5,12 @@ export interface Category {
   sort_order: number;
 }
 
+export interface ProductImage {
+  id: string;
+  image_path: string;
+  sort_order: number;
+}
+
 export interface Product {
   id: string;
   sku: string | null;
@@ -16,7 +22,7 @@ export interface Product {
   stock_qty: number;
   is_second_hand: boolean;
   image_url: string | null;
-  images: string[];
+  images: ProductImage[];
   is_active: boolean;
   created_at: string;
   updated_at: string;

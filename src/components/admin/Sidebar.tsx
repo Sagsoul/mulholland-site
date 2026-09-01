@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: "📊" },
   { href: "/admin/inventory", label: "Inventory", icon: "📦" },
+  { href: "/admin/import-inventory", label: "Import Inventory", icon: "📥" },
   { href: "/admin/pos", label: "POS Terminal", icon: "🏪" },
   { href: "/admin/sales", label: "Sales", icon: "💰" },
   { href: "/admin/pricelist", label: "Price List", icon: "📋" },
