@@ -16,9 +16,15 @@ export interface ProductRecord {
   price: number;
   stock_qty: number;
   image_url: string | null;
-  images?: string[];
+  images?: ProductImageOutput[];
   is_active: number;
   created_at: string;
+}
+
+export interface ProductImageOutput {
+  id: string;
+  image_path: string;
+  sort_order: number;
 }
 
 export interface SaleRecord {
@@ -47,24 +53,21 @@ export interface GetProductsOptions {
 }
 
 export interface CreateProductInput {
+  id?: string;
   name: string;
-  sku?: string | null;
   description?: string | null;
   price: number;
   stock_qty?: number;
   images?: string[] | null;
-  image_url?: string | null;
   is_active?: boolean;
 }
 
 export interface UpdateProductInput {
   name?: string;
-  sku?: string | null;
   description?: string | null;
   price?: number;
   stock_qty?: number;
   images?: string[] | null;
-  image_url?: string | null;
   is_active?: boolean;
 }
 
@@ -79,18 +82,19 @@ export interface CreateSaleInput {
 }
 
 interface ProductImageRecord {
+  id: string;
   product_id: string;
-  image_url: string;
+  image_path: string;
   sort_order: number;
   created_at: string;
 }
 
-function normalizeProduct(product: ProductRecord, images: string[] = []) {
-  const orderedImages = images.length > 0 ? images : product.image_url ? [product.image_url] : [];
+function normalizeProduct(product: ProductRecord, images: ProductImageOutput[] = []) {
+  const firstImagePath = images[0]?.image_path ?? product.image_url ?? null;
   return {
     ...product,
-    image_url: orderedImages[0] ?? null,
-    images: orderedImages,
+    image_url: firstImagePath,
+    images,
     is_active: Boolean(product.is_active),
     price_usd: product.price,
   };
@@ -117,12 +121,12 @@ function generateSku(name: string) {
   return `PRODUCT-${slug}-${createRandomSixDigitCode()}`;
 }
 
-function normalizeImagesInput(images?: string[] | null, imageUrl?: string | null) {
-  const source = Array.isArray(images) ? images : imageUrl == null ? [] : [imageUrl];
+function normalizeImagesInput(images?: string[] | null) {
+  const source = Array.isArray(images) ? images : [];
   const normalized = source
     .map((value) => {
       if (typeof value !== "string") {
-        throw new Error("Each image must be a string URL");
+        throw new Error("Each image must be a string path");
       }
       return value.trim();
     })
@@ -136,13 +140,13 @@ function normalizeImagesInput(images?: string[] | null, imageUrl?: string | null
 }
 
 async function getImagesByProductIds(productIds: string[]) {
-  const imageMap = new Map<string, string[]>();
+  const imageMap = new Map<string, ProductImageOutput[]>();
   if (productIds.length === 0) {
     return imageMap;
   }
 
   const rows = await all<ProductImageRecord>(
-    `SELECT product_id, image_url, sort_order, created_at
+    `SELECT id, product_id, image_path, sort_order, created_at
      FROM product_images
      WHERE product_id IN (${productIds.map(() => "?").join(",")})
      ORDER BY product_id ASC, sort_order ASC, created_at ASC`,
@@ -151,7 +155,7 @@ async function getImagesByProductIds(productIds: string[]) {
 
   for (const row of rows) {
     const current = imageMap.get(row.product_id) ?? [];
-    current.push(row.image_url);
+    current.push({ id: row.id, image_path: row.image_path, sort_order: row.sort_order });
     imageMap.set(row.product_id, current);
   }
 
@@ -161,11 +165,11 @@ async function getImagesByProductIds(productIds: string[]) {
 async function replaceProductImages(productId: string, images: string[]) {
   await run("DELETE FROM product_images WHERE product_id = ?", [productId]);
 
-  for (const [index, imageUrl] of images.entries()) {
-    await run(`INSERT INTO product_images (id, product_id, image_url, sort_order) VALUES (?, ?, ?, ?)`, [
+  for (const [index, imagePath] of images.entries()) {
+    await run(`INSERT INTO product_images (id, product_id, image_path, sort_order) VALUES (?, ?, ?, ?)`, [
       uuidv4(),
       productId,
-      imageUrl,
+      imagePath,
       index,
     ]);
   }
@@ -259,13 +263,12 @@ export async function createProduct(data: CreateProductInput) {
   }
 
   const name = data.name.trim();
-  const images = normalizeImagesInput(data.images, data.image_url);
-  const providedSku = data.sku?.trim() || null;
-  const maxSkuAttempts = providedSku ? 1 : 20;
+  const images = normalizeImagesInput(data.images);
+  const id = data.id ?? uuidv4();
+  const maxSkuAttempts = 20;
 
   for (let attempt = 0; attempt < maxSkuAttempts; attempt += 1) {
-    const sku = providedSku ?? generateSku(name);
-    const id = uuidv4();
+    const sku = generateSku(name);
 
     await run("BEGIN TRANSACTION;");
     try {
@@ -289,10 +292,7 @@ export async function createProduct(data: CreateProductInput) {
     } catch (error: any) {
       await run("ROLLBACK;");
       if (typeof error?.message === "string" && error.message.includes("UNIQUE constraint failed: products.sku")) {
-        if (!providedSku) {
-          continue;
-        }
-        throw new Error("Product SKU already exists");
+        continue;
       }
       throw error;
     }
@@ -311,14 +311,10 @@ export async function updateProduct(id: string, data: UpdateProductInput) {
   const nextPrice = data.price ?? currentProduct.price;
   const nextStockQty = data.stock_qty ?? currentProduct.stock_qty;
   const existingImages = Array.isArray(currentProduct.images)
-    ? currentProduct.images
-    : currentProduct.image_url
-      ? [currentProduct.image_url]
-      : [];
+    ? currentProduct.images.map((img) => img.image_path)
+    : [];
   const nextImages =
-    data.images === undefined && data.image_url === undefined
-      ? existingImages
-      : normalizeImagesInput(data.images, data.image_url);
+    data.images === undefined ? existingImages : normalizeImagesInput(data.images);
 
   if (!nextName) {
     throw new Error("Product name is required");
@@ -336,11 +332,10 @@ export async function updateProduct(id: string, data: UpdateProductInput) {
   try {
     await run(
       `UPDATE products
-       SET name = ?, sku = ?, description = ?, price = ?, stock_qty = ?, image_url = ?, is_active = ?
+       SET name = ?, description = ?, price = ?, stock_qty = ?, image_url = ?, is_active = ?
        WHERE id = ?`,
       [
         nextName,
-        data.sku === undefined ? currentProduct.sku : data.sku?.trim() || null,
         data.description === undefined ? currentProduct.description : data.description?.trim() || null,
         nextPrice,
         nextStockQty,
@@ -353,9 +348,6 @@ export async function updateProduct(id: string, data: UpdateProductInput) {
     await run("COMMIT;");
   } catch (error: any) {
     await run("ROLLBACK;");
-    if (typeof error?.message === "string" && error.message.includes("UNIQUE constraint failed: products.sku")) {
-      throw new Error("Product SKU already exists");
-    }
     throw error;
   }
 
@@ -386,6 +378,46 @@ export async function getProductBySku(sku: string) {
 export async function deleteProduct(id: string) {
   const result = await run("DELETE FROM products WHERE id = ?", [id]);
   return result.changes > 0;
+}
+
+export async function deleteProductImage(imageId: string, productId: string) {
+  const result = await run("DELETE FROM product_images WHERE id = ? AND product_id = ?", [imageId, productId]);
+  if (result.changes === 0) {
+    return false;
+  }
+  const imageMap = await getImagesByProductIds([productId]);
+  const remaining = imageMap.get(productId) ?? [];
+  const firstPath = remaining[0]?.image_path ?? null;
+  await run("UPDATE products SET image_url = ? WHERE id = ?", [firstPath, productId]);
+  return true;
+}
+
+export async function reorderProductImages(productId: string, orderedImageIds: string[]) {
+  const imageMap = await getImagesByProductIds([productId]);
+  const existingImages = imageMap.get(productId) ?? [];
+  const existingIds = new Set(existingImages.map((img) => img.id));
+
+  for (const imageId of orderedImageIds) {
+    if (!existingIds.has(imageId)) {
+      throw new Error(`Image ${imageId} does not belong to product ${productId}`);
+    }
+  }
+
+  await run("BEGIN TRANSACTION;");
+  try {
+    for (const [index, imageId] of orderedImageIds.entries()) {
+      await run("UPDATE product_images SET sort_order = ? WHERE id = ? AND product_id = ?", [index, imageId, productId]);
+    }
+    await run("COMMIT;");
+  } catch (error) {
+    await run("ROLLBACK;");
+    throw error;
+  }
+
+  const updatedMap = await getImagesByProductIds([productId]);
+  const images = updatedMap.get(productId) ?? [];
+  const firstPath = images[0]?.image_path ?? null;
+  await run("UPDATE products SET image_url = ? WHERE id = ?", [firstPath, productId]);
 }
 
 export async function getSales() {
