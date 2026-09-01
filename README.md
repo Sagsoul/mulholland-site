@@ -30,7 +30,8 @@ It is designed for a small catalog (roughly a few hundred products/variants) wit
 
 ### Admin
 
-- Admin login protected by env-based credentials
+- Email/password admin authentication with secure session cookies
+- Signup, optional email verification, forgot-password, and token-based password reset
 - Product CRUD with stock, SKU, price, description, active flag, and local image upload
 - POS/direct sale entry at `/admin/pos`
 - `/admin/pos?id=<productId>` instantly adds that product to the active POS cart (used in WhatsApp links)
@@ -58,9 +59,12 @@ Supported variables:
 |---|---|---|
 | `NEXT_PUBLIC_SITE_URL` | Yes | Base URL used in metadata and WhatsApp/product links |
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` | Yes | Seller WhatsApp number used in deep links |
-| `ADMIN_EMAIL` | Yes | Admin login email/identifier |
-| `ADMIN_PASSWORD` | Yes | Admin login password |
+| `ADMIN_EMAIL` | No | Seeds/migrates the initial admin account email if not present |
+| `ADMIN_PASSWORD` | No | Seeds/migrates the initial admin account password if not present |
 | `ADMIN_SESSION_SECRET` | Yes | Secret used to sign the admin session cookie |
+| `AUTH_REQUIRE_EMAIL_VERIFICATION` | No | Set to `false` to allow login without email verification (default: `true`) |
+| `RESEND_API_KEY` | Yes | Resend API key used for signup/verification/reset emails |
+| `RESEND_FROM_EMAIL` | Yes | Sender email shown on auth emails |
 | `SQLITE_DB_PATH` | No | SQLite file path (defaults to `./data/mulholland.sqlite3`) |
 
 ## Local Development
@@ -87,6 +91,7 @@ Open:
 
 - Storefront: `http://localhost:3000/shop`
 - Admin login: `http://localhost:3000/admin/login`
+- Admin signup: `http://localhost:3000/admin/signup`
 
 ## Production
 
@@ -118,6 +123,10 @@ npm run start
 - `/cart`
 - `/checkout`
 - `/admin`
+- `/admin/login`
+- `/admin/signup`
+- `/admin/forgot-password`
+- `/admin/reset-password`
 - `/admin/inventory`
 - `/admin/pos`
 - `/admin/sales`
@@ -136,6 +145,11 @@ npm run start
 - `GET /api/sales`
 - `GET/PUT /api/pricelist`
 - `POST/DELETE /api/admin/session`
+- `POST /api/auth/signup`
+- `GET/POST /api/auth/verify-email`
+- `POST /api/auth/resend-verification`
+- `POST /api/auth/forgot-password`
+- `POST /api/auth/reset-password`
 
 ## File Uploads
 
