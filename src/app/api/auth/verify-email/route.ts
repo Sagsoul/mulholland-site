@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyEmailToken } from "@/lib/auth-users";
+import { getSiteUrl } from "@/lib/site-url";
 
 async function verifyToken(rawToken?: string | null) {
   const token = rawToken?.trim();
@@ -9,7 +10,8 @@ async function verifyToken(rawToken?: string | null) {
 
 export async function GET(request: NextRequest) {
   const verified = await verifyToken(request.nextUrl.searchParams.get("token"));
-  const redirectUrl = new URL(`/admin/login?verified=${verified ? "1" : "0"}`, request.url);
+  const baseUrl = getSiteUrl();
+  const redirectUrl = new URL(`/admin/login?verified=${verified ? "1" : "0"}`, baseUrl);
   return NextResponse.redirect(redirectUrl);
 }
 
