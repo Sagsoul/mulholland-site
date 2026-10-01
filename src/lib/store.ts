@@ -499,6 +499,18 @@ export async function createSale(data: CreateSaleInput) {
   }
 
   const paymentMethod = data.payment_method?.trim() || "cash";
+  if (!["cash", "card", "mobile_money"].includes(paymentMethod)) {
+    throw new Error("Payment method must be cash, card, or mobile_money");
+  }
+
+  if (data.discount_type && data.discount_type !== "fixed" && data.discount_type !== "percent") {
+    throw new Error("Discount type must be fixed or percent");
+  }
+
+  const discountValue = data.discount_amount ?? 0;
+  if (!Number.isFinite(discountValue) || discountValue < 0) {
+    throw new Error("Discount amount must be a non-negative number");
+  }
 
   const saleId = uuidv4();
   const invoiceNumber = createInvoiceNumber();
@@ -560,11 +572,11 @@ export async function createSale(data: CreateSaleInput) {
 
   // Calculate discount
   let discountAmount = 0;
-  if (data.discount_amount && data.discount_amount > 0) {
+  if (discountValue > 0) {
     if (data.discount_type === 'percent') {
-      discountAmount = Math.round(subtotal * (data.discount_amount / 100) * 100) / 100;
+      discountAmount = Math.min(subtotal, Math.round(subtotal * (discountValue / 100) * 100) / 100);
     } else {
-      discountAmount = Math.min(data.discount_amount, subtotal);
+      discountAmount = Math.min(discountValue, subtotal);
     }
   }
 
