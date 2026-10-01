@@ -50,12 +50,22 @@ async function sendEmail(to: string, subject: string, html: string) {
   });
 }
 
+async function trySendEmail(to: string, subject: string, html: string) {
+  try {
+    await sendEmail(to, subject, html);
+    return true;
+  } catch (error) {
+    console.error("Email delivery failed:", error);
+    return false;
+  }
+}
+
 export async function sendWelcomeEmail(to: string, requiresVerification: boolean) {
   const accountMessage = requiresVerification
     ? "Please verify your email address to activate your admin account."
     : "You can now sign in and manage inventory, pricing, and sales.";
 
-  await sendEmail(
+  await trySendEmail(
     to,
     "Welcome to Mulholland Admin",
     emailLayout(
@@ -67,7 +77,7 @@ export async function sendWelcomeEmail(to: string, requiresVerification: boolean
 }
 
 export async function sendEmailVerificationEmail(to: string, verificationUrl: string) {
-  await sendEmail(
+  await trySendEmail(
     to,
     "Verify your Mulholland account",
     emailLayout(
@@ -84,7 +94,7 @@ export async function sendEmailVerificationEmail(to: string, verificationUrl: st
 }
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string) {
-  await sendEmail(
+  await trySendEmail(
     to,
     "Reset your Mulholland password",
     emailLayout(
