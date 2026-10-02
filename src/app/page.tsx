@@ -1,15 +1,13 @@
-import Link from "next/link";
-import Image from "next/image";
 import { getProducts } from "@/lib/store";
-import { formatUSD } from "@/lib/format";
-
-export const revalidate = 60;
+import Link from "next/link";
 
 export default async function Home() {
-  const products = (await getProducts({ isActive: true })).filter((p) => p.stock_qty > 0).slice(0, 8);
+  const products = (await getProducts({ isActive: true }))
+    .filter((product) => product.stock_qty > 0)
+    .slice(0, 8);
 
   return (
-    <div className="bg-gray-50">
+    <main className="min-h-screen bg-gray-50">
       <section className="bg-navy text-white py-20 px-4 text-center">
         <h1 className="text-4xl font-bold mb-4">Mulholland Traders Pvt Ltd</h1>
         <p className="text-lg text-gray-200 mb-8">Pipe repair, waterproofing &amp; hardware supplies.</p>
@@ -29,31 +27,20 @@ export default async function Home() {
           <p className="text-gray-500">No products available right now.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-            {products.map((product) => {
-              const thumb = product.images?.[0]?.image_path ?? null;
-              return (
-                <Link
-                  key={product.id}
-                  href={`/product/${product.id}`}
-                  className="bg-white rounded-xl shadow hover:shadow-md transition-shadow overflow-hidden"
-                >
-                  <div className="relative w-full aspect-square bg-gray-100">
-                    {thumb ? (
-                      <Image src={thumb} alt={product.name} fill className="object-cover" sizes="25vw" />
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-gray-300 text-5xl">📦</div>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold text-navy truncate">{product.name}</h3>
-                    <p className="text-lg font-bold text-navy mt-2">{formatUSD(product.price_usd)}</p>
-                  </div>
-                </Link>
-              );
-            })}
+            {products.map((product) => (
+              <Link
+                key={product.id}
+                href={`/product/${product.id}`}
+                className="bg-white rounded-xl shadow hover:shadow-md transition-shadow p-4"
+              >
+                <h3 className="font-semibold text-navy truncate">{product.name}</h3>
+                <p className="text-sm text-gray-500 mt-2 line-clamp-2">{product.description ?? ""}</p>
+                <p className="text-lg font-bold text-navy mt-3">${product.price_usd.toFixed(2)}</p>
+              </Link>
+            ))}
           </div>
         )}
       </section>
-    </div>
+    </main>
   );
 }
